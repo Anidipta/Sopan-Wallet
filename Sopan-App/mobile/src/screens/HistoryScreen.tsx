@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
 import { StorageService } from '../services/StorageService';
 import { StellarService } from '../services/StellarService';
 
@@ -13,6 +13,9 @@ interface Transaction {
   status: 'completed' | 'pending' | 'syncing' | 'failed';
   mode: 'online' | 'offline';
   txHash?: string;
+  txHash?: string;
+  contractId?: string;
+  isDeployment?: boolean;
 }
 
 interface HistoryScreenProps {
@@ -45,7 +48,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
 
       // Load offline/pending transactions
       const offlineTxs = await storage.getOfflineTransactions();
-      
+
       // Convert offline txs to Transaction format
       const pendingTransactions: Transaction[] = offlineTxs.map(tx => ({
         id: tx.id,
@@ -57,9 +60,23 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
         mode: 'offline'
       }));
 
+      // Fetch deployments (mock)
+      const deployments = await storage.getDeployments();
+      const deploymentTxs: Transaction[] = deployments.map((d: any) => ({
+        id: d.id,
+        type: 'send',
+        amount: 0,
+        recipient: `Contract (${d.network})`,
+        timestamp: d.timestamp,
+        status: d.status,
+        mode: 'online',
+        contractId: d.contractId,
+        isDeployment: true
+      }));
+
       // Fetch real transactions from Stellar blockchain
       const stellarTxs = await stellar.getRecentTransactions(wallet.publicKey, 20);
-      
+
       const completedTransactions: Transaction[] = stellarTxs.map((tx: any) => ({
         id: tx.hash,
         type: tx.from === wallet.publicKey ? 'send' : 'receive',
@@ -72,9 +89,9 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
         txHash: tx.hash
       }));
 
-      // Combine pending and completed transactions
-      const allTransactions = [...pendingTransactions, ...completedTransactions];
-      setTransactions(allTransactions);
+      // Combine pending, deployments, and completed transactions
+      const allTransactions = [...pendingTransactions, ...deploymentTxs, ...completedTransactions];
+      setTransactions(allTransactions.sort((a, b) => b.timestamp - a.timestamp));
     } catch (error) {
       console.error('Failed to load transactions:', error);
       setTransactions([]);
@@ -101,7 +118,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
+
     if (diff < 3600000) {
       return `${Math.floor(diff / 60000)}m ago`;
     } else if (diff < 86400000) {
@@ -166,17 +183,27 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
           </View>
         ) : (
           filteredTransactions.map((tx) => (
-            <TouchableOpacity 
-              key={tx.id} 
+            <TouchableOpacity
+              key={tx.id}
               style={styles.transactionCard}
-              onPress={() => onTransactionSelect?.(tx)}
+              onPress={() => {
+                if (tx.isDeployment && tx.contractId) {
+                  Alert.alert(
+                    'Smart Contract Deployed',
+                    `Contract ID:\n${tx.contractId}\n\nNetwork: Testnet`,
+                    [{ text: 'OK' }]
+                  );
+                } else {
+                  onTransactionSelect?.(tx);
+                }
+              }}
             >
               <View style={[
                 styles.transactionIcon,
-                { backgroundColor: tx.type === 'send' ? '#9945FF' : '#14F195' }
+                { backgroundColor: tx.isDeployment ? 'rgba(153, 69, 255, 0.2)' : (tx.type === 'send' ? '#9945FF' : '#14F195') }
               ]}>
                 <Text style={styles.transactionIconText}>
-                  {tx.type === 'send' ? '↑' : '↓'}
+                  {tx.isDeployment ? '🚀' : (tx.type === 'send' ? '↑' : '↓')}
                 </Text>
               </View>
 
@@ -203,7 +230,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
                       </Text>
                     </View>
                     {tx.txHash && tx.status === 'completed' && (
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         onPress={() => openInExplorer(tx.txHash!)}
                         style={styles.explorerButton}
                       >
@@ -219,9 +246,9 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
                   styles.amountText,
                   { color: tx.type === 'send' ? '#FF6B9D' : '#14F195' }
                 ]}>
-                  {tx.type === 'send' ? '-' : '+'}{tx.amount.toFixed(4)}
+                  {tx.isDeployment ? 'Deploy' : `${tx.type === 'send' ? '-' : '+'}${tx.amount.toFixed(4)}`}
                 </Text>
-                <Text style={styles.amountCurrency}>XLM</Text>
+                <Text style={styles.amountCurrency}>{tx.isDeployment ? '' : 'XLM'}</Text>
               </View>
             </TouchableOpacity>
           ))
@@ -234,7 +261,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -247,7 +274,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1A1A24',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -269,11 +296,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#1A1A24',
+    backgroundColor: 'rgba(153, 69, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(153, 69, 255, 0.3)',
     alignItems: 'center',
   },
   filterButtonActive: {
-    backgroundColor: '#14F195',
+    backgroundColor: '#9945FF',
   },
   filterText: {
     color: '#888',
@@ -281,7 +310,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filterTextActive: {
-    color: '#000',
+    color: '#fff',
   },
   list: {
     flex: 1,
@@ -312,7 +341,9 @@ const styles = StyleSheet.create({
   transactionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A24',
+    backgroundColor: 'rgba(153, 69, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(153, 69, 255, 0.3)',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,

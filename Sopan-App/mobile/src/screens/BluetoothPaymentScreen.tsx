@@ -102,14 +102,16 @@ const BluetoothPaymentScreen: React.FC<BluetoothPaymentScreenProps> = ({ onBack,
 
       if (result.success) {
         const isRealPayment = selectedDevice.id === 'device-4' && selectedDevice.walletAddress === '7SsNDQ4bdTMAz1W9hYdYRPybmWMjMmmbttAkQBXJ5J8Z';
-        
+
         Alert.alert(
           isRealPayment ? '🚀 Real Payment Sent!' : '✅ Payment Sent!',
           `Successfully sent ${amount} XLM to ${selectedDevice.name}\n${isRealPayment ? '💰 Real Stellar transaction' : '🎭 Simulated payment'}\nTx: ${result.txHash?.slice(0, 8)}...`,
-          [{ text: 'OK', onPress: () => {
-            setAmount('');
-            setMemo('');
-          }}]
+          [{
+            text: 'OK', onPress: () => {
+              setAmount('');
+              setMemo('');
+            }
+          }]
         );
       } else {
         Alert.alert('Payment Failed', result.error || 'Unknown error');
@@ -123,7 +125,7 @@ const BluetoothPaymentScreen: React.FC<BluetoothPaymentScreenProps> = ({ onBack,
 
   const handleDeviceSelection = (device: MockDevice) => {
     setSelectedDevice(device);
-    
+
     // Show special message for OnePlus 12 with real wallet
     if (device.id === 'device-4' && device.walletAddress === '7SsNDQ4bdTMAz1W9hYdYRPybmWMjMmmbttAkQBXJ5J8Z') {
       Alert.alert(
@@ -145,9 +147,9 @@ const BluetoothPaymentScreen: React.FC<BluetoothPaymentScreenProps> = ({ onBack,
       >
         <View style={styles.deviceHeader}>
           <Text style={styles.deviceEmoji}>
-            {device.deviceType === 'Samsung' ? '📱' : 
-             device.deviceType === 'Vivo' ? '📲' : 
-             device.deviceType === 'iPhone' ? '📱' : '📱'}
+            {device.deviceType === 'Samsung' ? '📱' :
+              device.deviceType === 'Vivo' ? '📲' :
+                device.deviceType === 'iPhone' ? '📱' : '📱'}
           </Text>
           <View style={styles.connectedDot} />
         </View>
@@ -205,128 +207,121 @@ const BluetoothPaymentScreen: React.FC<BluetoothPaymentScreenProps> = ({ onBack,
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Bluetooth Pay</Text>
-        <TouchableOpacity style={styles.manageButton} onPress={onManageDevices}>
-          <LinearGradient
-            colors={['#00D4FF', '#0099CC']}
-            style={styles.manageGradient}
-          >
-            <Text style={styles.manageButtonText}>⚡</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       {bluetoothSimulator.getTrustedDevices().length === 0 ? (
-          <View style={styles.emptyState}>
+        <View style={styles.emptyState}>
+          <LinearGradient
+            colors={['#1a1a2e', '#2a2a3e']}
+            style={styles.emptyCard}
+          >
+            <Text style={styles.emptyIcon}>⚡</Text>
+            <Text style={styles.emptyTitle}>Connect & Pay</Text>
+            <Text style={styles.emptySubtitle}>
+              Set up your Bluetooth devices for instant offline payments
+            </Text>
+            <TouchableOpacity onPress={onManageDevices}>
+              <LinearGradient
+                colors={['#00D4FF', '#0099CC']}
+                style={styles.setupButton}
+              >
+                <Text style={styles.setupButtonText}>Get Started</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      ) : (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Connected Devices</Text>
+            <TouchableOpacity onPress={onManageDevices} style={styles.addDeviceBtn}>
+              <Text style={styles.addDeviceText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={bluetoothSimulator.getTrustedDevices()}
+            keyExtractor={(item) => item.id}
+            renderItem={renderDeviceOption}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.devicesList}
+          />
+
+          {selectedDevice && (
             <LinearGradient
-              colors={['#1a1a2e', '#2a2a3e']}
-              style={styles.emptyCard}
+              colors={selectedDevice.id === 'device-4' ? ['#14F195', '#00D4A0'] : ['#1a1a2e', '#2a2a3e']}
+              style={styles.paymentCard}
             >
-              <Text style={styles.emptyIcon}>⚡</Text>
-              <Text style={styles.emptyTitle}>Connect & Pay</Text>
-              <Text style={styles.emptySubtitle}>
-                Set up your Bluetooth devices for instant offline payments
-              </Text>
-              <TouchableOpacity onPress={onManageDevices}>
+              <View style={styles.paymentHeader}>
+                <Text style={[styles.paymentTitle, selectedDevice.id === 'device-4' && styles.realPaymentTitle]}>
+                  Send Payment
+                </Text>
+                <View style={styles.selectedDeviceInfo}>
+                  <Text style={[styles.selectedDeviceName, selectedDevice.id === 'device-4' && styles.realDeviceName]}>
+                    {selectedDevice.name}
+                  </Text>
+                  <View style={[styles.connectedBadge, selectedDevice.id === 'device-4' && styles.realConnectedBadge]}>
+                    <Text style={[styles.connectedBadgeText, selectedDevice.id === 'device-4' && styles.realConnectedBadgeText]}>
+                      Connected
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {selectedDevice.id === 'device-4' && (
+                <View style={styles.realPaymentWarning}>
+                  <Text style={styles.warningText}>
+                    ⚠️ Real Solana transaction to: {selectedDevice.walletAddress?.slice(0, 8)}...{selectedDevice.walletAddress?.slice(-8)}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.amountSection}>
+                <Text style={styles.amountLabel}>Amount</Text>
+                <View style={styles.amountInput}>
+                  <TextInput
+                    style={styles.amountText}
+                    value={amount}
+                    onChangeText={setAmount}
+                    placeholder="0.00"
+                    placeholderTextColor="#666"
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.currencyText}>XLM</Text>
+                </View>
+              </View>
+
+              <View style={styles.memoSection}>
+                <TextInput
+                  style={styles.memoInput}
+                  value={memo}
+                  onChangeText={setMemo}
+                  placeholder="Add a note (optional)"
+                  placeholderTextColor="#666"
+                />
+              </View>
+
+              <TouchableOpacity
+                onPress={sendPayment}
+                disabled={isProcessing || !amount}
+              >
                 <LinearGradient
-                  colors={['#00D4FF', '#0099CC']}
-                  style={styles.setupButton}
+                  colors={isProcessing || !amount ? ['#666', '#444'] : ['#00D4FF', '#0099CC']}
+                  style={styles.sendButton}
                 >
-                  <Text style={styles.setupButtonText}>Get Started</Text>
+                  {isProcessing ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.sendButtonText}>
+                      Send {amount || '0'} XLM ⚡
+                    </Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </LinearGradient>
-          </View>
-        ) : (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Connected Devices</Text>
-              <TouchableOpacity onPress={onManageDevices} style={styles.addDeviceBtn}>
-                <Text style={styles.addDeviceText}>+ Add</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={bluetoothSimulator.getTrustedDevices()}
-              keyExtractor={(item) => item.id}
-              renderItem={renderDeviceOption}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.devicesList}
-            />
-
-            {selectedDevice && (
-              <LinearGradient
-                colors={selectedDevice.id === 'device-4' ? ['#14F195', '#00D4A0'] : ['#1a1a2e', '#2a2a3e']}
-                style={styles.paymentCard}
-              >
-                <View style={styles.paymentHeader}>
-                  <Text style={[styles.paymentTitle, selectedDevice.id === 'device-4' && styles.realPaymentTitle]}>
-                    Send Payment
-                  </Text>
-                  <View style={styles.selectedDeviceInfo}>
-                    <Text style={[styles.selectedDeviceName, selectedDevice.id === 'device-4' && styles.realDeviceName]}>
-                      {selectedDevice.name}
-                    </Text>
-                    <View style={[styles.connectedBadge, selectedDevice.id === 'device-4' && styles.realConnectedBadge]}>
-                      <Text style={[styles.connectedBadgeText, selectedDevice.id === 'device-4' && styles.realConnectedBadgeText]}>
-                        Connected
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {selectedDevice.id === 'device-4' && (
-                  <View style={styles.realPaymentWarning}>
-                    <Text style={styles.warningText}>
-                      ⚠️ Real Solana transaction to: {selectedDevice.walletAddress?.slice(0, 8)}...{selectedDevice.walletAddress?.slice(-8)}
-                    </Text>
-                  </View>
-                )}
-
-                <View style={styles.amountSection}>
-                  <Text style={styles.amountLabel}>Amount</Text>
-                  <View style={styles.amountInput}>
-                    <TextInput
-                      style={styles.amountText}
-                      value={amount}
-                      onChangeText={setAmount}
-                      placeholder="0.00"
-                      placeholderTextColor="#666"
-                      keyboardType="numeric"
-                    />
-                    <Text style={styles.currencyText}>XLM</Text>
-                  </View>
-                </View>
-
-                <View style={styles.memoSection}>
-                  <TextInput
-                    style={styles.memoInput}
-                    value={memo}
-                    onChangeText={setMemo}
-                    placeholder="Add a note (optional)"
-                    placeholderTextColor="#666"
-                  />
-                </View>
-
-                <TouchableOpacity
-                  onPress={sendPayment}
-                  disabled={isProcessing || !amount}
-                >
-                  <LinearGradient
-                    colors={isProcessing || !amount ? ['#666', '#444'] : ['#00D4FF', '#0099CC']}
-                    style={styles.sendButton}
-                  >
-                    {isProcessing ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.sendButtonText}>
-                        Send {amount || '0'} XLM ⚡
-                      </Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </LinearGradient>
-            )}
+          )}
 
           {recentTransactions.length > 0 && (
             <View style={styles.transactionsSection}>
@@ -362,7 +357,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -375,6 +370,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+    textAlign: 'center',
   },
   manageButton: {
     width: 44,

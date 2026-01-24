@@ -38,7 +38,7 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
       setConnectingDeviceId(null);
       setDevices(prev => prev.map(d => d.id === device.id ? device : d));
       Alert.alert(
-        '✅ Connected Successfully!', 
+        '✅ Connected Successfully!',
         `Successfully connected to ${device.name}\n\n🔗 Bluetooth connection established\n📱 Device ready for payments`,
         [{ text: 'OK', style: 'default' }]
       );
@@ -85,13 +85,13 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
 
     setConnectingDeviceId(device.id);
     const success = await bluetoothSimulator.connectToDevice(device.id);
-    
+
     if (!success) {
       setConnectingDeviceId(null);
       Alert.alert('Error', 'Failed to connect to device');
     }
-  }; 
- const addWalletToDevice = (device: MockDevice) => {
+  };
+  const addWalletToDevice = (device: MockDevice) => {
     Alert.prompt(
       'Add Wallet Address',
       `Enter wallet address for ${device.name}`,
@@ -102,7 +102,7 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
           onPress: (walletAddress?: string) => {
             if (walletAddress && walletAddress.length > 20) {
               bluetoothSimulator.addTrustedDevice(device.id, walletAddress);
-              setDevices(prev => prev.map(d => 
+              setDevices(prev => prev.map(d =>
                 d.id === device.id ? { ...d, walletAddress } : d
               ));
               Alert.alert('Success', 'Wallet address added to device');
@@ -233,43 +233,45 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f23',
-    padding: 20,
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
   },
   backButtonText: {
-    color: '#00d4aa',
-    fontSize: 18,
-    fontWeight: '600',
+    color: '#fff',
+    fontSize: 24,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+    flex: 1,
+    textAlign: 'center',
   },
   scanButton: {
-    backgroundColor: '#00d4aa',
+    backgroundColor: '#9945FF',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
   },
   scanningButton: {
-    backgroundColor: '#ff6b6b',
+    backgroundColor: '#FF6B35',
   },
   scanIcon: {
     marginRight: 8,
@@ -279,12 +281,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   deviceCard: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
+    backgroundColor: 'rgba(153, 69, 255, 0.1)',
+    borderRadius: 16,
     padding: 16,
+    marginHorizontal: 20,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#2a2a3e',
+    borderColor: 'rgba(153, 69, 255, 0.3)',
   },
   deviceHeader: {
     flexDirection: 'row',

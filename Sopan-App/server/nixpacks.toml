@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["nodejs", "cargo", "rustc", "gcc", "pkg-config", "openssl"]
+
+[phases.install]
+cmds = ["npm install", "rustup target add wasm32-unknown-unknown", "cargo install cargo-contract --force"]
+
+[start]
+cmd = "npm start"

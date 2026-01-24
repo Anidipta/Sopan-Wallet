@@ -54,16 +54,36 @@ export class StorageService {
     return data ? JSON.parse(data) : null;
   }
 
+  private DEPLOYMENTS_KEY = 'deployments';
+
+  async saveDeployment(deployment: any): Promise<void> {
+    const existing = await this.getDeployments();
+    // Check if exists and update
+    const index = existing.findIndex((d: any) => d.id === deployment.id);
+    if (index >= 0) {
+      existing[index] = deployment;
+    } else {
+      existing.unshift(deployment);
+    }
+    await AsyncStorage.setItem(this.DEPLOYMENTS_KEY, JSON.stringify(existing));
+  }
+
+  async getDeployments(): Promise<any[]> {
+    const data = await AsyncStorage.getItem(this.DEPLOYMENTS_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+
   async clearAllData(): Promise<void> {
     // Clear wallet from secure storage
     await SecureStore.deleteItemAsync(this.WALLET_KEY);
-    
+
     // Clear user data and transactions
     await AsyncStorage.multiRemove([
       this.USER_DATA_KEY,
-      this.OFFLINE_TX_KEY
+      this.OFFLINE_TX_KEY,
+      this.DEPLOYMENTS_KEY
     ]);
-    
+
     console.log('✅ All user data cleared');
   }
 }

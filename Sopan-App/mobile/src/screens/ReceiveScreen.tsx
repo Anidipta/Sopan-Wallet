@@ -121,7 +121,7 @@ export const ReceiveScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1A1A24',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -174,7 +174,9 @@ const styles = StyleSheet.create({
   },
   balanceCard: {
     width: '100%',
-    backgroundColor: '#1A1A24',
+    backgroundColor: 'rgba(153, 69, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(153, 69, 255, 0.3)',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
@@ -192,7 +194,9 @@ const styles = StyleSheet.create({
   },
   addressCard: {
     width: '100%',
-    backgroundColor: '#1A1A24',
+    backgroundColor: 'rgba(153, 69, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(153, 69, 255, 0.3)',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -217,7 +221,9 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    backgroundColor: '#2A2A3A',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(153, 69, 255, 0.3)',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -227,7 +233,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   actionText: {
-    color: '#14F195',
+    color: '#9945FF',
     fontSize: 14,
     fontWeight: '600',
   },

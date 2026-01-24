@@ -5,6 +5,7 @@ import { StellarService } from '../services/StellarService';
 import { StorageService } from '../services/StorageService';
 import SopanIcon from '../components/SopanIcon';
 import { Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = ({ onNavigate }) => {
   const [balance, setBalance] = useState<number>(0);
@@ -12,6 +13,7 @@ export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [activeTab, setActiveTab] = useState<'tokens' | 'collectibles'>('tokens');
 
   const stellar = new StellarService('testnet');
   const storage = new StorageService();
@@ -23,30 +25,30 @@ export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = 
   const initWallet = async () => {
     try {
       let wallet = await storage.getWallet();
-      
+
       if (!wallet) {
         const newWallet = await stellar.createWallet();
         await storage.saveWallet(newWallet.publicKey, newWallet.secretKey);
-        wallet = newWallet;
+        wallet = { publicKey: newWallet.publicKey, encryptedPrivateKey: newWallet.secretKey };
       }
 
-      setPublicKey(wallet.publicKey);
-      await fetchBalance(wallet.publicKey);
-      await checkConnectivity();
+      if (wallet) {
+        setPublicKey(wallet.publicKey);
+        await fetchBalance(wallet.publicKey);
+        await checkConnectivity();
 
-      // Subscribe to real-time balance updates
-      const unsubscribe = stellar.subscribeToBalance(wallet.publicKey, (newBalance) => {
-        // Only log if balance actually changed significantly
-        if (Math.abs(newBalance - balance) > 0.01) {
-          console.log('💰 Balance updated:', newBalance);
-        }
-        setBalance(newBalance);
-      });
+        // Subscribe to real-time balance updates
+        const unsubscribe = stellar.subscribeToBalance(wallet.publicKey, (newBalance) => {
+          if (Math.abs(newBalance - balance) > 0.01) {
+            console.log('💰 Balance updated:', newBalance);
+          }
+          setBalance(newBalance);
+        });
 
-      // Cleanup subscription on unmount
-      return () => {
-        unsubscribe();
-      };
+        return () => {
+          unsubscribe();
+        };
+      }
     } catch (error) {
       console.error('Wallet init failed:', error);
     } finally {
@@ -68,16 +70,6 @@ export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = 
     setIsOnline(online);
   };
 
-  const copyAddress = async () => {
-    try {
-      const Clipboard = require('expo-clipboard');
-      await Clipboard.setStringAsync(publicKey);
-      console.log('✅ Address copied to clipboard');
-    } catch (error) {
-      console.error('Failed to copy:', error);
-    }
-  };
-
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -91,130 +83,218 @@ export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = 
     }
   };
 
+  const copyAddress = async () => {
+    try {
+      const Clipboard = require('expo-clipboard');
+      await Clipboard.setStringAsync(publicKey);
+      console.log('✅ Address copied to clipboard');
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  };
+
+  const fundWallet = async () => {
+    try {
+      setRefreshing(true);
+      const response = await fetch(`https://friendbot.stellar.org?addr=${publicKey}`);
+      if (response.ok) {
+        console.log('✅ Wallet funded with 10,000 XLM');
+        await fetchBalance(publicKey);
+      } else {
+        console.error('Failed to fund wallet');
+      }
+    } catch (error) {
+      console.error('Friendbot error:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#14F195" />
+        <ActivityIndicator size="large" color="#9945FF" />
         <Text style={styles.loadingText}>Initializing Wallet...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView 
+    <LinearGradient
+      colors={['#000000', '#0d0015', '#1a0033', '#1f0d33', '#2d1a4d', '#331a00', '#4d2600']}
+      locations={[0, 0.15, 0.3, 0.5, 0.65, 0.8, 1]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
+      <ScrollView
         style={styles.scrollView}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#14F195"
-            colors={['#14F195']}
+            tintColor="#9945FF"
+            colors={['#9945FF']}
           />
         }
       >
-      <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <Image source={SopanIcon} style={{ width: 32, height: 32, resizeMode: 'contain' }} />
-          <Text style={styles.title}>SOPAN</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <View style={[styles.statusBadge, isOnline ? styles.online : styles.offline]}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>{isOnline ? 'Online' : 'Offline'}</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.profileButton}
-            onPress={() => onNavigate('profile')}
-          >
-            <Text style={styles.profileButtonText}>👤</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.scanButton}>
+            <Ionicons name="scan" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
-      </View>
 
-      <LinearGradient
-        colors={['#14F195', '#9945FF']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.balanceCard}
-      >
-        <View style={styles.balanceContent}>
-          <Text style={styles.balanceLabel}>Total Balance</Text>
-          <Text style={styles.balanceAmount}>{balance.toFixed(4)} XLM</Text>
-          <Text style={styles.balanceUsd}>≈ ${(balance * 0.12).toFixed(2)} USD</Text>
+
+        {/* Balance Display */}
+        <View style={styles.balanceContainer}>
+          <Text style={styles.balanceAmount}>${(balance * 0.12).toFixed(2)}</Text>
+          <Text style={styles.balanceSubtext}>{balance.toFixed(4)} XLM</Text>
+
+          {/* Wallet Actions */}
+          <View style={styles.walletActions}>
+            <TouchableOpacity style={styles.walletActionButton} onPress={copyAddress}>
+              <Ionicons name="copy-outline" size={16} color="#9945FF" />
+              <Text style={styles.walletActionText}>Copy Address</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.walletActionButton} onPress={fundWallet}>
+              <Ionicons name="wallet-outline" size={16} color="#FF6B35" />
+              <Text style={styles.walletActionText}>Fund Wallet</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </LinearGradient>
 
-      <View style={styles.addressCard}>
-        <Text style={styles.addressLabel}>Your Address</Text>
-        <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
-          {publicKey}
-        </Text>
-        <TouchableOpacity style={styles.copyButton} onPress={copyAddress}>
-          <Text style={styles.copyButtonText}>Copy Address</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.actionsGrid}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => onNavigate('send')}>
-          <LinearGradient
-            colors={['#9945FF', '#7B2FD9']}
-            style={styles.actionIcon}
+        {/* Action Buttons */}
+        <View style={styles.actionsGrid}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => onNavigate('receive')}
           >
-            <Text style={styles.actionIconText}>↑</Text>
-          </LinearGradient>
-          <Text style={styles.actionLabel}>Send</Text>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={['rgba(153, 69, 255, 0.3)', 'rgba(153, 69, 255, 0.1)']}
+              style={styles.actionIconContainer}
+            >
+              <Ionicons name="add" size={28} color="#fff" />
+            </LinearGradient>
+            <Text style={styles.actionLabel}>Add</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={() => onNavigate('receive')}>
-          <LinearGradient
-            colors={['#14F195', '#00D4A0']}
-            style={styles.actionIcon}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => onNavigate('bluetooth')}
           >
-            <Text style={styles.actionIconText}>↓</Text>
-          </LinearGradient>
-          <Text style={styles.actionLabel}>Receive</Text>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={['rgba(153, 69, 255, 0.3)', 'rgba(153, 69, 255, 0.1)']}
+              style={styles.actionIconContainer}
+            >
+              <Ionicons name="swap-horizontal" size={28} color="#fff" />
+            </LinearGradient>
+            <Text style={styles.actionLabel}>Transfer</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={() => onNavigate('bluetooth')}>
-          <LinearGradient
-            colors={['#00D4FF', '#0099CC']}
-            style={styles.actionIcon}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => onNavigate('history')}
           >
-            <Text style={styles.actionIconText}>⚡</Text>
-          </LinearGradient>
-          <Text style={styles.actionLabel}>Bluetooth</Text>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={['rgba(153, 69, 255, 0.3)', 'rgba(153, 69, 255, 0.1)']}
+              style={styles.actionIconContainer}
+            >
+              <Ionicons name="calendar-outline" size={28} color="#fff" />
+            </LinearGradient>
+            <Text style={styles.actionLabel}>History</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={() => onNavigate('history')}>
-          <LinearGradient
-            colors={['#FF6B9D', '#FF4081']}
-            style={styles.actionIcon}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => onNavigate('solust')}
           >
-            <Text style={styles.actionIconText}>📋</Text>
-          </LinearGradient>
-          <Text style={styles.actionLabel}>History</Text>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={['rgba(153, 69, 255, 0.3)', 'rgba(153, 69, 255, 0.1)']}
+              style={styles.actionIconContainer}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={28} color="#fff" />
+            </LinearGradient>
+            <Text style={styles.actionLabel}>Solust</Text>
+          </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity style={styles.actionButton} onPress={() => onNavigate('settings')}>
-          <LinearGradient
-            colors={['#666', '#444']}
-            style={styles.actionIcon}
+        {/* Tabs */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'tokens' && styles.activeTab]}
+            onPress={() => setActiveTab('tokens')}
           >
-            <Text style={styles.actionIconText}>⚙️</Text>
-          </LinearGradient>
-          <Text style={styles.actionLabel}>Settings</Text>
-        </TouchableOpacity>
-      </View>
+            <Text style={[styles.tabText, activeTab === 'tokens' && styles.activeTabText]}>
+              Tokens
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'collectibles' && styles.activeTab]}
+            onPress={() => setActiveTab('collectibles')}
+          >
+            <Text style={[styles.tabText, activeTab === 'collectibles' && styles.activeTabText]}>
+              Collectibles
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>💡 Offline Payments</Text>
-        <Text style={styles.infoText}>
-          Send payments via Bluetooth when offline. Transactions sync automatically when you're back online.
-        </Text>
-      </View>
+        {/* Token List */}
+        {activeTab === 'tokens' && (
+          <View style={styles.tokenList}>
+            <View style={styles.tokenItem}>
+              <View style={styles.tokenIcon}>
+                <Text style={styles.tokenIconText}>⭐</Text>
+              </View>
+              <View style={styles.tokenInfo}>
+                <Text style={styles.tokenName}>Stellar Lumens</Text>
+                <Text style={styles.tokenAmount}>{balance.toFixed(2)} XLM</Text>
+              </View>
+              <View style={styles.tokenValue}>
+                <Text style={styles.tokenPrice}>${(balance * 0.12).toFixed(2)}</Text>
+                <Text style={styles.tokenChange}>+3.14%</Text>
+              </View>
+            </View>
+
+            <View style={styles.tokenItem}>
+              <View style={[styles.tokenIcon, { backgroundColor: '#2775CA' }]}>
+                <Text style={styles.tokenIconText}>$</Text>
+              </View>
+              <View style={styles.tokenInfo}>
+                <Text style={styles.tokenName}>USDC</Text>
+                <Text style={styles.tokenAmount}>0.00 USDC</Text>
+              </View>
+              <View style={styles.tokenValue}>
+                <Text style={styles.tokenPrice}>$0.00</Text>
+                <Text style={[styles.tokenChange, { color: '#666' }]}>+0.00%</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {activeTab === 'collectibles' && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No collectibles yet</Text>
+          </View>
+        )}
+
+        {/* Bottom Navigation */}
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navButton}>
+            <Ionicons name="time-outline" size={24} color="#666" />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.navButton, styles.activeNavButton]}>
+            <Ionicons name="home" size={24} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => onNavigate('profile')}
+          >
+            <Ionicons name="person-outline" size={24} color="#666" />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -241,171 +321,210 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
     paddingTop: 60,
+    paddingBottom: 20,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-  },
-  profileButton: {
+  menuButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#111111',
-    borderWidth: 1,
-    borderColor: '#222222',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  profileButtonText: {
-    fontSize: 20,
-  },
-  online: {
-    backgroundColor: 'rgba(20, 241, 149, 0.15)',
-  },
-  offline: {
-    backgroundColor: 'rgba(255, 107, 157, 0.15)',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#14F195',
-  },
-  statusText: {
-    color: '#14F195',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  balanceCard: {
-    margin: 20,
-    padding: 40,
-    borderRadius: 24,
-    minHeight: 180,
-  },
-  balanceContent: {
+  scanButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  balanceLabel: {
-    color: 'rgba(0, 0, 0, 0.7)',
-    fontSize: 13,
+  accountSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+    gap: 8,
+  },
+  accountIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(153, 69, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  accountText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
+  },
+  balanceContainer: {
+    alignItems: 'center',
+    marginBottom: 50,
   },
   balanceAmount: {
-    color: '#000',
-    fontSize: 48,
+    color: '#fff',
+    fontSize: 56,
     fontWeight: '700',
-    letterSpacing: -1,
+    letterSpacing: -2,
     marginBottom: 8,
   },
-  balanceUsd: {
-    color: 'rgba(0, 0, 0, 0.6)',
+  balanceSubtext: {
+    color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 16,
     fontWeight: '500',
+    marginBottom: 20,
   },
-  addressCard: {
-    margin: 20,
-    marginTop: 0,
-    padding: 24,
-    backgroundColor: '#111111',
+  walletActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  walletActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(153, 69, 255, 0.15)',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#222222',
+    borderColor: 'rgba(153, 69, 255, 0.3)',
   },
-  addressLabel: {
-    color: '#888',
-    fontSize: 12,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  addressText: {
+  walletActionText: {
     color: '#fff',
-    fontSize: 14,
-    marginBottom: 16,
-    fontFamily: 'monospace',
-  },
-  copyButton: {
-    backgroundColor: '#2A2A3A',
-    padding: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  copyButtonText: {
-    color: '#14F195',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   actionsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 20,
-    gap: 16,
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+    marginBottom: 50,
+    gap: 30,
   },
   actionButton: {
-    width: '47%',
     alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#111111',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#222222',
+    gap: 12,
   },
-  actionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  actionIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  actionIconText: {
-    fontSize: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(153, 69, 255, 0.3)',
   },
   actionLabel: {
     color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    gap: 12,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: '#fff',
+  },
+  tabText: {
+    color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 15,
     fontWeight: '600',
   },
-  infoCard: {
-    margin: 20,
-    padding: 24,
-    backgroundColor: '#111111',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#222222',
+  activeTabText: {
+    color: '#fff',
   },
-  infoTitle: {
+  tokenList: {
+    paddingHorizontal: 20,
+    gap: 16,
+  },
+  tokenItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  tokenIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(153, 69, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  tokenIconText: {
+    fontSize: 24,
+  },
+  tokenInfo: {
+    flex: 1,
+  },
+  tokenName: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  infoText: {
-    color: '#888',
-    fontSize: 14,
-    lineHeight: 20,
+  tokenAmount: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 13,
+  },
+  tokenValue: {
+    alignItems: 'flex-end',
+  },
+  tokenPrice: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  tokenChange: {
+    color: '#14F195',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  emptyState: {
+    paddingVertical: 60,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 15,
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 40,
+    marginTop: 40,
+    gap: 60,
+  },
+  navButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeNavButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
 });

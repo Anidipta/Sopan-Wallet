@@ -10,9 +10,9 @@ if (typeof global.EventSource === 'undefined') {
       this.url = url;
       this.readyState = 0;
     }
-    addEventListener() {}
-    removeEventListener() {}
-    close() {}
+    addEventListener() { }
+    removeEventListener() { }
+    close() { }
   };
 }
 
@@ -21,6 +21,8 @@ import { StatusBar, View, ActivityIndicator, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { LoadingScreen } from './src/screens/LoadingScreen';
+import { SolustAIScreen } from './src/screens/SolustAIScreen';
 import { StorageService } from './src/services/StorageService';
 import { NotificationService } from './src/services/NotificationService';
 import { ErrorRecoveryService } from './src/services/ErrorRecoveryService';
@@ -33,10 +35,10 @@ export default function App() {
 
   useEffect(() => {
     initializeApp();
-    
+
     // Handle app state changes
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
+
     return () => {
       subscription.remove();
     };
@@ -46,10 +48,10 @@ export default function App() {
     try {
       // Request notification permissions
       await notifications.requestPermissions();
-      
+
       // Recover app state
       await errorRecovery.recoverAppState();
-      
+
       // Check onboarding
       await checkOnboarding();
     } catch (error) {
@@ -89,9 +91,7 @@ export default function App() {
   if (isOnboarded === null) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#14F195" />
-        </View>
+        <LoadingScreen />
       </SafeAreaProvider>
     );
   }

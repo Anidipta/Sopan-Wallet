@@ -10,6 +10,7 @@ import { ProfileScreen } from './ProfileScreen';
 import { ScanQRScreen } from './ScanQRScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { TransactionDetailsScreen } from './TransactionDetailsScreen';
+import { SolustAIScreen } from './SolustAIScreen';
 import { NotificationService } from '../services/NotificationService';
 
 interface HomeScreenProps {
@@ -42,11 +43,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogout }) => {
     switch (currentScreen) {
       case 'send':
         return (
-          <SendScreen 
+          <SendScreen
             onBack={() => {
               setScannedAddress(''); // Clear scanned address when going back
               setCurrentScreen('wallet');
-            }} 
+            }}
             onScanQR={() => setCurrentScreen('scanqr')}
             initialRecipient={scannedAddress}
           />
@@ -55,8 +56,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogout }) => {
         return <ReceiveScreen onBack={() => setCurrentScreen('wallet')} />;
       case 'scanqr':
         return (
-          <ScanQRScreen 
-            onBack={() => setCurrentScreen('send')} 
+          <ScanQRScreen
+            onBack={() => setCurrentScreen('send')}
             onScanned={handleQRScanned}
           />
         );
@@ -66,7 +67,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogout }) => {
         return <BluetoothDevicesScreen onBack={() => setCurrentScreen('bluetooth')} />;
       case 'history':
         return (
-          <HistoryScreen 
+          <HistoryScreen
             onBack={() => setCurrentScreen('wallet')}
             onTransactionSelect={handleTransactionSelected}
           />
@@ -77,11 +78,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogout }) => {
         return <SettingsScreen onBack={() => setCurrentScreen('wallet')} />;
       case 'transactionDetails':
         return (
-          <TransactionDetailsScreen 
+          <TransactionDetailsScreen
             transaction={selectedTransaction}
             onBack={() => setCurrentScreen('history')}
           />
         );
+      case 'solust':
+        return <SolustAIScreen onBack={() => setCurrentScreen('wallet')} />;
       case 'wallet':
       default:
         return <WalletScreen onNavigate={setCurrentScreen} />;

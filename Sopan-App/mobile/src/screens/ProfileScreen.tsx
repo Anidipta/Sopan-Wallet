@@ -49,8 +49,8 @@ export const ProfileScreen: React.FC<{ onBack: () => void; onLogout: () => void 
       '⚠️ Never share your private key with anyone. Anyone with access to your private key can steal your funds.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'I Understand', 
+        {
+          text: 'I Understand',
           style: 'destructive',
           onPress: () => {
             Alert.alert('Private Key', wallet?.encryptedPrivateKey || 'Not available');
@@ -102,7 +102,7 @@ export const ProfileScreen: React.FC<{ onBack: () => void; onLogout: () => void 
               {wallet?.publicKey || 'Loading...'}
             </Text>
           </View>
-          
+
           <TouchableOpacity style={styles.actionCard} onPress={handleViewOnExplorer}>
             <Text style={styles.actionCardIcon}>🔍</Text>
             <View style={styles.actionCardContent}>
@@ -124,7 +124,7 @@ export const ProfileScreen: React.FC<{ onBack: () => void; onLogout: () => void 
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Bluetooth Devices</Text>
-          
+
           <TouchableOpacity style={styles.actionCard} onPress={() => Alert.alert('Bluetooth Devices', 'Manage your trusted Bluetooth devices for payments')}>
             <Text style={styles.actionCardIcon}>📱</Text>
             <View style={styles.actionCardContent}>
@@ -146,7 +146,7 @@ export const ProfileScreen: React.FC<{ onBack: () => void; onLogout: () => void 
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
-          
+
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>⚡ Bluetooth Payments</Text>
@@ -176,7 +176,7 @@ export const ProfileScreen: React.FC<{ onBack: () => void; onLogout: () => void 
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>App Information</Text>
-          
+
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>App Version</Text>
@@ -219,7 +219,7 @@ export const ProfileScreen: React.FC<{ onBack: () => void; onLogout: () => void 
           </View>
           <Text style={styles.aboutTitle}>SOPAN Wallet</Text>
           <Text style={styles.aboutText}>
-            Build Anywhere. Pay Offline. Send crypto payments online or offline with Bluetooth. Powered by Stellar blockchain.
+            Build Anywhere. Pay Offline. Powered by Stellar blockchain.
           </Text>
           <Text style={styles.aboutCopyright}>© 2026 SOPAN. All rights reserved.</Text>
         </View>
