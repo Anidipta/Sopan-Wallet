@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StellarService } from '../services/StellarService';
 import { StorageService } from '../services/StorageService';
@@ -14,6 +14,7 @@ export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = 
   const [refreshing, setRefreshing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [activeTab, setActiveTab] = useState<'tokens' | 'collectibles'>('tokens');
+  const [showToast, setShowToast] = useState(false);
 
   const stellar = new StellarService('testnet');
   const storage = new StorageService();
@@ -100,11 +101,16 @@ export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = 
       if (response.ok) {
         console.log('✅ Wallet funded with 10,000 XLM');
         await fetchBalance(publicKey);
+
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 1500); // 1.5s popup
       } else {
         console.error('Failed to fund wallet');
+        Alert.alert('Error', 'Failed to fund wallet');
       }
     } catch (error) {
       console.error('Friendbot error:', error);
+      Alert.alert('Error', 'Friendbot service unavailable');
     } finally {
       setRefreshing(false);
     }
@@ -127,6 +133,16 @@ export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = 
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
+      {/* Toast Notification */}
+      {showToast && (
+        <View style={styles.toastContainer}>
+          <View style={styles.toastContent}>
+            <Ionicons name="checkmark-circle" size={24} color="#14F195" />
+            <Text style={styles.toastText}>Account Funded Successfully!</Text>
+          </View>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
         refreshControl={
@@ -516,5 +532,29 @@ const styles = StyleSheet.create({
   },
   activeNavButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+    zIndex: 100,
+    alignItems: 'center',
+  },
+  toastContent: {
+    backgroundColor: 'rgba(20, 241, 149, 0.2)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#14F195',
+  },
+  toastText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

@@ -10,25 +10,25 @@ interface SendScreenProps {
   onBack: () => void;
   onScanQR: () => void;
   initialRecipient?: string;
+  isBluetooth?: boolean;
 }
 
-export const SendScreen: React.FC<SendScreenProps> = ({ onBack, onScanQR, initialRecipient }) => {
+export const SendScreen: React.FC<SendScreenProps> = ({ onBack, onScanQR, initialRecipient, isBluetooth }) => {
   const [recipient, setRecipient] = useState(initialRecipient || '');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Update recipient when initialRecipient changes (from QR scan)
+  const payment = new PaymentService();
+  const storage = new StorageService();
+  const biometric = new BiometricService();
+  const notifications = NotificationService.getInstance();
+
   useEffect(() => {
     if (initialRecipient) {
       setRecipient(initialRecipient);
       console.log('✅ Address autofilled from QR scan:', initialRecipient);
     }
   }, [initialRecipient]);
-
-  const payment = new PaymentService();
-  const storage = new StorageService();
-  const biometric = new BiometricService();
-  const notifications = NotificationService.getInstance();
 
   const handleSend = async () => {
     if (!recipient || !amount) {
@@ -53,10 +53,17 @@ export const SendScreen: React.FC<SendScreenProps> = ({ onBack, onScanQR, initia
     }
 
     setLoading(true);
+
+    // Logic: 
+    // If isBluetooth is TRUE -> We want "Offline First" (handled by PaymentService default).
+    // If isBluetooth is FALSE/Undefined -> We want "Force Online" (skip handshake).
+    const forceOnline = !isBluetooth;
+
     const result = await payment.sendPayment(
       recipient,
       parseFloat(amount),
-      wallet.encryptedPrivateKey
+      wallet.encryptedPrivateKey,
+      { forceOnline }
     );
     setLoading(false);
 
@@ -86,6 +93,13 @@ export const SendScreen: React.FC<SendScreenProps> = ({ onBack, onScanQR, initia
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.form}>
+          {isBluetooth && (
+            <View style={styles.modeBadge}>
+              <Ionicons name="bluetooth" size={16} color="#00D4FF" />
+              <Text style={styles.modeText}>Bluetooth Mode Active</Text>
+            </View>
+          )}
+
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Recipient Address</Text>
             <TextInput
@@ -99,7 +113,7 @@ export const SendScreen: React.FC<SendScreenProps> = ({ onBack, onScanQR, initia
             />
             {initialRecipient && (
               <View style={styles.autofilledBadge}>
-                <Text style={styles.autofilledText}>✓ From QR Scan</Text>
+                <Text style={styles.autofilledText}>✓ From {isBluetooth ? 'Bluetooth' : 'QR Scan'}</Text>
               </View>
             )}
             <TouchableOpacity style={styles.scanButton} onPress={onScanQR}>
@@ -135,13 +149,19 @@ export const SendScreen: React.FC<SendScreenProps> = ({ onBack, onScanQR, initia
 
           <View style={styles.summary}>
             <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Service Fee (0.01%)</Text>
+              <Text style={styles.summaryValue}>
+                {amount ? (parseFloat(amount) * 0.0001).toFixed(6) : '0.00'} XLM
+              </Text>
+            </View>
+            <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Network Fee</Text>
               <Text style={styles.summaryValue}>~0.00001 XLM</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Total</Text>
               <Text style={styles.summaryValueBold}>
-                {amount ? (parseFloat(amount) + 0.00001).toFixed(6) : '0.00'} XLM
+                {amount ? (parseFloat(amount) * 1.0001 + 0.00001).toFixed(6) : '0.00'} XLM
               </Text>
             </View>
           </View>
@@ -196,6 +216,24 @@ const styles = StyleSheet.create({
   },
   form: {
     padding: 20,
+  },
+  modeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 212, 255, 0.1)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 255, 0.3)',
+  },
+  modeText: {
+    color: '#00D4FF',
+    fontWeight: '600',
+    fontSize: 12,
   },
   inputContainer: {
     marginBottom: 24,

@@ -2,18 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { Transaction } from '../types';
 
-interface Transaction {
-  id: string;
-  type: 'sent' | 'received';
-  amount: number;
-  address: string;
-  timestamp: number;
-  status: 'confirmed' | 'pending' | 'failed';
-  signature?: string;
-  fee?: number;
-  blockTime?: number;
-}
+// Local interface removed in favor of global one from ../types
 
 interface TransactionDetailsScreenProps {
   transaction: Transaction;
@@ -30,8 +21,9 @@ export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> =
   };
 
   const openExplorer = () => {
-    if (transaction.signature) {
-      const url = `https://stellar.expert/explorer/testnet/tx/${transaction.signature}`;
+    const txId = transaction.txHash || transaction.signature;
+    if (txId) {
+      const url = `https://stellar.expert/explorer/testnet/tx/${txId}`;
       Linking.openURL(url);
     }
   };
@@ -47,10 +39,12 @@ export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> =
 
   const getStatusColor = () => {
     switch (transaction.status) {
-      case 'confirmed':
+      case 'completed':
         return '#14F195';
       case 'pending':
         return '#FFA500';
+      case 'syncing':
+        return '#00D4FF';
       case 'failed':
         return '#FF4444';
       default:
@@ -60,10 +54,12 @@ export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> =
 
   const getStatusIcon = () => {
     switch (transaction.status) {
-      case 'confirmed':
+      case 'completed':
         return '✓';
       case 'pending':
         return '⏳';
+      case 'syncing':
+        return '🔄';
       case 'failed':
         return '✗';
       default:
@@ -97,13 +93,13 @@ export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> =
         {/* Amount Card */}
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>
-            {transaction.type === 'sent' ? 'Sent' : 'Received'}
+            {transaction.type === 'deploy' ? 'Contract Deployment' : (transaction.type === 'send' ? 'Sent' : 'Received')}
           </Text>
           <Text style={[
             styles.amount,
-            { color: transaction.type === 'sent' ? '#FF6B6B' : '#14F195' }
+            { color: transaction.type === 'send' ? '#FF6B6B' : (transaction.type === 'deploy' ? '#9945FF' : '#14F195') }
           ]}>
-            {transaction.type === 'sent' ? '-' : '+'}{transaction.amount} XLM
+            {transaction.type === 'send' ? '-' : (transaction.type === 'receive' ? '+' : '')}{transaction.amount} XLM
           </Text>
           <Text style={styles.amountUsd}>
             ≈ ${(transaction.amount * 0.12).toFixed(2)} USD
@@ -117,30 +113,60 @@ export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> =
             <Text style={styles.detailValue}>{formatDate(transaction.timestamp)}</Text>
           </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>
-              {transaction.type === 'sent' ? 'To' : 'From'}
-            </Text>
-            <TouchableOpacity
-              style={styles.addressContainer}
-              onPress={() => copyToClipboard(transaction.address, 'Address')}
-            >
-              <Text style={styles.detailValue} numberOfLines={1}>
-                {transaction.address}
-              </Text>
-              <Text style={styles.copyIcon}>📋</Text>
-            </TouchableOpacity>
-          </View>
-
-          {transaction.signature && (
+          {transaction.type === 'send' && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Transaction ID</Text>
+              <Text style={styles.detailLabel}>To</Text>
               <TouchableOpacity
                 style={styles.addressContainer}
-                onPress={() => copyToClipboard(transaction.signature!, 'Transaction ID')}
+                onPress={() => copyToClipboard(transaction.recipient, 'Recipient Address')}
               >
                 <Text style={styles.detailValue} numberOfLines={1}>
-                  {transaction.signature}
+                  {transaction.recipient}
+                </Text>
+                <Text style={styles.copyIcon}>📋</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {transaction.type === 'receive' && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>From</Text>
+              <TouchableOpacity
+                style={styles.addressContainer}
+                onPress={() => copyToClipboard(transaction.sender, 'Sender Address')}
+              >
+                <Text style={styles.detailValue} numberOfLines={1}>
+                  {transaction.sender}
+                </Text>
+                <Text style={styles.copyIcon}>📋</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {transaction.isDeployment && transaction.contractId && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Contract ID</Text>
+              <TouchableOpacity
+                style={styles.addressContainer}
+                onPress={() => copyToClipboard(transaction.contractId!, 'Contract ID')}
+              >
+                <Text style={styles.detailValue} numberOfLines={1}>
+                  {transaction.contractId}
+                </Text>
+                <Text style={styles.copyIcon}>📋</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {(transaction.txHash || transaction.signature) && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Transaction Hash</Text>
+              <TouchableOpacity
+                style={styles.addressContainer}
+                onPress={() => copyToClipboard(transaction.txHash || transaction.signature!, 'Transaction Hash')}
+              >
+                <Text style={styles.detailValue} numberOfLines={1}>
+                  {transaction.txHash || transaction.signature}
                 </Text>
                 <Text style={styles.copyIcon}>📋</Text>
               </TouchableOpacity>
@@ -157,7 +183,7 @@ export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> =
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Type</Text>
             <Text style={styles.detailValue}>
-              {transaction.type === 'sent' ? 'Transfer Out' : 'Transfer In'}
+              {transaction.type === 'send' ? 'Transfer Out' : (transaction.type === 'receive' ? 'Transfer In' : 'Contract Deployment')}
             </Text>
           </View>
         </View>

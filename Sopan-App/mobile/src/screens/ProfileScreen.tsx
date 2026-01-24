@@ -203,15 +203,6 @@ export const ProfileScreen: React.FC<{ onBack: () => void; onLogout: () => void 
             </View>
             <Text style={styles.actionCardArrow}>→</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard} onPress={() => Linking.openURL('https://sopan.app/terms')}>
-            <Text style={styles.actionCardIcon}>📄</Text>
-            <View style={styles.actionCardContent}>
-              <Text style={styles.actionCardTitle}>Terms & Privacy</Text>
-              <Text style={styles.actionCardDescription}>Read our policies</Text>
-            </View>
-            <Text style={styles.actionCardArrow}>→</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.aboutSection}>

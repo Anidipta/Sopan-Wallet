@@ -16,7 +16,7 @@ export class ErrorRecoveryService {
   private retryDelay = 5000; // 5 seconds
   private failedTransactions: Map<string, FailedTransaction> = new Map();
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): ErrorRecoveryService {
     if (!ErrorRecoveryService.instance) {
@@ -54,7 +54,7 @@ export class ErrorRecoveryService {
     } else {
       console.log(`⚠️ Transaction ${transactionId} failed after ${this.maxRetries} attempts`);
       this.failedTransactions.delete(transactionId);
-      
+
       // Notify user
       const notifications = NotificationService.getInstance();
       await notifications.notifyTransactionConfirmed(transactionId); // Use as failure notification
@@ -91,12 +91,12 @@ export class ErrorRecoveryService {
         failed.transaction.amount
       );
 
-      console.log(`✅ Transaction ${transactionId} succeeded on retry:`, signature);
+      console.log(`✅ Transaction ${transactionId} succeeded on retry:`, hash);
       this.failedTransactions.delete(transactionId);
 
       // Notify success
       const notifications = NotificationService.getInstance();
-      await notifications.notifyTransactionConfirmed(signature);
+      await notifications.notifyTransactionConfirmed(hash);
     } catch (error) {
       console.error(`❌ Retry failed for ${transactionId}:`, error);
       await this.handleTransactionError(transactionId, failed.transaction, error as Error);
@@ -105,7 +105,7 @@ export class ErrorRecoveryService {
 
   async retryAllFailed(): Promise<void> {
     console.log(`🔄 Retrying ${this.failedTransactions.size} failed transactions...`);
-    
+
     for (const [id, _] of this.failedTransactions) {
       await this.retryTransaction(id);
     }
@@ -140,10 +140,30 @@ export class ErrorRecoveryService {
     }
 
     if (message.includes('blockhash')) {
+      // If it's a signature error, we might want to flag for re-signing
+      // Note: check if 'signature' property actually exists before accessing
+      // Assuming 'transaction' and 'initialError' would be passed or accessible if this logic is needed.
+      // For now, this logic is commented out as 'initialError' and 'transaction' are not in scope.
+      // If this logic is truly desired, the method signature for getUserFriendlyError would need to be updated
+      // to accept 'transaction' and 'initialError' parameters.
+      /*
+      if (
+        initialError?.message?.includes('signature') || 
+        (transaction && 'signature' in transaction && !(transaction as any).signature)
+      ) {
+        return {
+          strategy: 'resign_and_retry',
+          priority: 2
+        };
+      }
+      */
       return 'Transaction expired. Please try again.';
     }
 
     if (message.includes('signature')) {
+      // This is the original signature check.
+      // If the above blockhash logic is intended to replace or augment this,
+      // the method signature needs to be updated to pass 'transaction' and 'initialError'.
       return 'Invalid signature. Please check your wallet and try again.';
     }
 
@@ -188,13 +208,13 @@ export class ErrorRecoveryService {
 
       // Check for pending transactions
       const pendingTxs = await storage.getOfflineTransactions();
-      
+
       if (pendingTxs.length > 0) {
         console.log(`Found ${pendingTxs.length} pending transactions`);
 
         // Check if online
         const online = await stellar.isOnline();
-        
+
         if (online) {
           console.log('Online - attempting to sync pending transactions');
           // Sync will be handled by PaymentService

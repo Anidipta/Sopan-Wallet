@@ -37,14 +37,54 @@ export class PaymentService {
   async sendPayment(
     recipientPublicKey: string,
     amount: number,
-    secretKey: string
+    secretKey: string,
+    options?: { forceOnline?: boolean }
   ): Promise<{ success: boolean; txId?: string; error?: string }> {
+
+    let offlineResult: { success: boolean; txId?: string; error?: string } = { success: false };
+
+    // 1. Check for Forced Online Mode (User opted for Internet Transfer)
+    if (options?.forceOnline) {
+      console.log('🌐 Forced Online Mode. Skipping Offline Handshake.');
+    } else {
+      // 2. Attempt Offline/Bluetooth Transaction First
+      console.log('🔄 Initiating Offline Handshake...');
+      offlineResult = await this.sendOfflinePayment(recipientPublicKey, amount, secretKey);
+
+      if (offlineResult.success) {
+        console.log('✅ Offline Handshake Validated. Check ID:', offlineResult.txId);
+        // If offline handshake succeeded, we return early IF network is down, 
+        // OR we continue to sync if network is sending.
+        // Actually, per previous logic: we check connectivity next.
+      } else {
+        console.warn('⚠️ Offline handshake failed, falling back to direct online check...');
+      }
+
+      // If we are offline AND handshake succeeded, return early (don't try online)
+      await this.checkConnectivity();
+      if (!this.isOnline && offlineResult.success) {
+        console.log('📴 Network Unavailable. Transaction stored locally.');
+        return { success: true, txId: offlineResult.txId };
+      }
+    }
+
+    // 3. Online Execution (Sync or Direct)
     await this.checkConnectivity();
 
     if (this.isOnline) {
+      console.log('🌐 Network Available. Processing on Blockchain...');
       return this.sendOnlinePayment(recipientPublicKey, amount, secretKey);
     } else {
-      return this.sendOfflinePayment(recipientPublicKey, amount, secretKey);
+      // If we are here, it means:
+      // A) forceOnline was true BUT we are offline -> Fail
+      // B) forceOnline false, offline handshake failed, AND we are offline -> Fail
+
+      const msg = options?.forceOnline
+        ? 'Internet connection required for this transfer.'
+        : 'Offline handshake failed and no network available.';
+
+      console.log('❌ ' + msg);
+      return { success: false, error: msg };
     }
   }
 
@@ -54,22 +94,34 @@ export class PaymentService {
     secretKey: string
   ): Promise<{ success: boolean; txId?: string; error?: string }> {
     const txId = uuidv4();
-    
+
     try {
       // Get payment asset (SOPAN token or native XLM)
       const asset = getPaymentAsset();
-      
-      const hash = await this.stellar.sendTransaction(
-        secretKey,
-        recipientPublicKey,
-        amount,
-        undefined, // memo
-        asset || undefined // custom token or undefined for XLM
-      );
+
+      let hash: string;
+
+      if (!asset) {
+        // Native XLM -> Use Smart Contract with 0.01% Fee
+        hash = await this.stellar.sendWithServiceFee(
+          secretKey,
+          recipientPublicKey,
+          amount
+        );
+      } else {
+        // Custom Token -> Use Standard Payment
+        hash = await this.stellar.sendTransaction(
+          secretKey,
+          recipientPublicKey,
+          amount,
+          undefined,
+          asset
+        );
+      }
 
       // Wait for confirmation
       const confirmed = await this.stellar.confirmTransaction(hash);
-      
+
       if (confirmed) {
         await this.notifications.notifyTransactionConfirmed(hash);
       }
@@ -77,7 +129,7 @@ export class PaymentService {
       return { success: true, txId: hash };
     } catch (error) {
       console.error('Online payment failed:', error);
-      
+
       // Handle error with recovery service
       await this.errorRecovery.handleTransactionError(
         txId,
@@ -90,6 +142,7 @@ export class PaymentService {
     }
   }
 
+  // Renamed to verify it's the internal handshake logic
   private async sendOfflinePayment(
     recipientPublicKey: string,
     amount: number,
@@ -109,6 +162,8 @@ export class PaymentService {
       };
 
       const bluetooth = this.getBluetoothService();
+      // In a real device flow, this would involve advertising/scanning.
+      // For simulator, it signs and stores.
       const signedTx = bluetooth.signTransaction(transaction, secretKey);
       await this.storage.saveOfflineTransaction(signedTx);
 
@@ -141,7 +196,7 @@ export class PaymentService {
 
           // Get payment asset
           const asset = getPaymentAsset();
-          
+
           // Submit to Stellar blockchain
           const hash = await this.stellar.sendTransaction(
             wallet.encryptedPrivateKey,
@@ -158,7 +213,7 @@ export class PaymentService {
           await this.stellar.confirmTransaction(hash);
         } catch (error) {
           console.error(`❌ Failed to sync transaction ${tx.id}:`, error);
-          
+
           // Handle with error recovery
           await this.errorRecovery.handleTransactionError(
             tx.id,
@@ -185,7 +240,7 @@ export class PaymentService {
   async startAutoSync(): Promise<void> {
     setInterval(async () => {
       await this.checkConnectivity();
-      
+
       if (this.isOnline) {
         const synced = await this.syncOfflineTransactions();
         if (synced > 0) {

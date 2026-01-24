@@ -61,3 +61,4 @@ rustup-init.exe
 !mobile/start-tunnel.bat
 
 contracts/
+contracts/payment-program/*

@@ -1,22 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Platform } from 'react-native';
 import { StorageService } from '../services/StorageService';
 import { StellarService } from '../services/StellarService';
 import { Ionicons } from '@expo/vector-icons';
+import { Transaction } from '../types';
 
-interface Transaction {
-  id: string;
-  type: 'send' | 'receive';
-  amount: number;
-  recipient?: string;
-  sender?: string;
-  timestamp: number;
-  status: 'completed' | 'pending' | 'syncing' | 'failed';
-  mode: 'online' | 'offline';
-  txHash?: string;
-  contractId?: string;
-  isDeployment?: boolean;
-}
+// Local interface removed in favor of global one from ../types
 
 interface HistoryScreenProps {
   onBack: () => void;
@@ -24,6 +13,7 @@ interface HistoryScreenProps {
 }
 
 export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransactionSelect }) => {
+  const isWebDesktop = Platform.OS === 'web';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [loading, setLoading] = useState(true);
@@ -55,18 +45,21 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
         type: 'send',
         amount: tx.amount,
         recipient: tx.recipient,
+        sender: tx.sender || wallet.publicKey,
         timestamp: tx.timestamp,
         status: 'pending',
-        mode: 'offline'
+        mode: 'offline',
+        memo: tx.memo
       }));
 
       // Fetch deployments (mock)
       const deployments = await storage.getDeployments();
       const deploymentTxs: Transaction[] = deployments.map((d: any) => ({
         id: d.id,
-        type: 'send',
+        type: 'deploy',
         amount: 0,
         recipient: `Contract (${d.network})`,
+        sender: wallet.publicKey,
         timestamp: d.timestamp,
         status: d.status,
         mode: 'online',
@@ -78,19 +71,26 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
       const stellarTxs = await stellar.getRecentTransactions(wallet.publicKey, 20);
 
       const completedTransactions: Transaction[] = stellarTxs.map((tx: any) => ({
-        id: tx.hash,
-        type: tx.from === wallet.publicKey ? 'send' : 'receive',
+        id: tx.id || tx.hash,
+        type: (tx.from === wallet.publicKey ? 'send' : 'receive') as 'send' | 'receive',
         amount: parseFloat(tx.amount || '0'),
-        recipient: tx.to,
-        sender: tx.from,
-        timestamp: tx.timestamp * 1000,
+        recipient: tx.to || 'Unknown',
+        sender: tx.from || 'Unknown',
+        timestamp: tx.timestamp,
         status: 'completed',
         mode: 'online',
-        txHash: tx.hash
+        txHash: tx.hash,
+        memo: tx.memo
       }));
 
+      // Filter out pending transactions that are already completed
+      // (Deduplication based on ID matching which is often used for tracking)
+      const uniquePending = pendingTransactions.filter(p =>
+        !completedTransactions.some(c => c.id === p.id || c.txHash === p.id)
+      );
+
       // Combine pending, deployments, and completed transactions
-      const allTransactions = [...pendingTransactions, ...deploymentTxs, ...completedTransactions];
+      const allTransactions = [...uniquePending, ...deploymentTxs, ...completedTransactions];
       setTransactions(allTransactions.sort((a, b) => b.timestamp - a.timestamp));
     } catch (error) {
       console.error('Failed to load transactions:', error);
@@ -185,7 +185,11 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
           filteredTransactions.map((tx) => (
             <TouchableOpacity
               key={tx.id}
-              style={styles.transactionCard}
+              style={[
+                styles.transactionCard,
+                isWebDesktop && styles.transactionCardWeb,
+                isWebDesktop && tx.status === 'completed' && styles.completedCardWeb
+              ]}
               onPress={() => {
                 if (tx.isDeployment && tx.contractId) {
                   Alert.alert(
@@ -200,9 +204,10 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
             >
               <View style={[
                 styles.transactionIcon,
-                { backgroundColor: tx.isDeployment ? 'rgba(153, 69, 255, 0.2)' : (tx.type === 'send' ? '#9945FF' : '#14F195') }
+                { backgroundColor: tx.isDeployment ? 'rgba(153, 69, 255, 0.2)' : (tx.type === 'send' ? '#9945FF' : '#14F195') },
+                isWebDesktop && styles.transactionIconWeb
               ]}>
-                <Text style={styles.transactionIconText}>
+                <Text style={[styles.transactionIconText, isWebDesktop && styles.transactionIconTextWeb]}>
                   {tx.isDeployment ? '🚀' : (tx.type === 'send' ? '↑' : '↓')}
                 </Text>
               </View>
@@ -210,7 +215,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
               <View style={styles.transactionInfo}>
                 <View style={styles.transactionHeader}>
                   <Text style={styles.transactionType}>
-                    {tx.sender?.startsWith('GAIH3B') || tx.sender?.startsWith('GCAUC6') ? 'Friendbot Funds' : (tx.type === 'send' ? 'Sent to' : 'Received from')}
+                    {tx.sender === 'GAIH3BXP27LYLYM6YS62MOCX57O6L73PWTF57W5X3TCHWMPVXV2F6746' || tx.sender?.startsWith('GAIH3') ? 'Friendbot Funds' : (tx.type === 'send' ? 'Sent to' : 'Received from')}
                   </Text>
                   {tx.mode === 'offline' && (
                     <View style={styles.offlineBadge}>
@@ -224,11 +229,13 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
                 <View style={styles.transactionFooter}>
                   <Text style={styles.transactionTime}>{formatTime(tx.timestamp)}</Text>
                   <View style={styles.transactionFooterRight}>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(tx.status) + '20' }]}>
-                      <Text style={[styles.statusText, { color: getStatusColor(tx.status) }]}>
-                        {getStatusText(tx.status)}
-                      </Text>
-                    </View>
+                    {!isWebDesktop && (
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(tx.status) + '20' }]}>
+                        <Text style={[styles.statusText, { color: getStatusColor(tx.status) }]}>
+                          {getStatusText(tx.status)}
+                        </Text>
+                      </View>
+                    )}
                     {tx.txHash && tx.status === 'completed' && (
                       <TouchableOpacity
                         onPress={() => openInExplorer(tx.txHash!)}
@@ -428,5 +435,23 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 12,
     marginTop: 2,
+  },
+  completedCardWeb: {
+    borderColor: '#14F195',
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(20, 241, 149, 0.05)',
+  },
+  transactionCardWeb: {
+    padding: 10,
+    marginBottom: 8,
+    borderRadius: 12,
+  },
+  transactionIconWeb: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  transactionIconTextWeb: {
+    fontSize: 18,
   },
 });

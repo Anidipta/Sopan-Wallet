@@ -482,7 +482,6 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
-          <Ionicons name="chatbubble-ellipses" size={24} color="#9945FF" style={{ marginRight: 8 }} />
           <Text style={styles.title}>Solust AI</Text>
         </View>
         <View style={{ width: 40 }} />

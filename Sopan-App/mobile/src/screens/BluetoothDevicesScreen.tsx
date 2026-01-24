@@ -17,11 +17,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { bluetoothService } from '../services/BluetoothService';
 import { MockDevice } from '../services/BluetoothSimulator';
 
+// ... imports
+// We need to update props interface
 interface BluetoothDevicesScreenProps {
   onBack: () => void;
+  onNavigate: (screen: string, params?: any) => void;
 }
 
-const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack }) => {
+const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack, onNavigate }) => {
   const { width } = useWindowDimensions();
   const [devices, setDevices] = useState<MockDevice[]>([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -30,6 +33,20 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
 
   const numColumns = width > 1000 ? 3 : width > 600 ? 2 : 1;
   const cardWidth = (width - 40 - (numColumns - 1) * 16) / numColumns;
+
+  // -- Moved helper methods up so they can be filtered before useEffect --
+  const startScanning = async () => {
+    try {
+      await bluetoothService.requestPermissions();
+      await bluetoothService.startScanning();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to start scanning');
+    }
+  };
+
+  const stopScanning = () => {
+    bluetoothService.stopScanning();
+  };
 
   useEffect(() => {
     // Get local discovery name
@@ -73,27 +90,40 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
     // Load existing devices
     setDevices(bluetoothService.getAllDevices());
 
+    // Initial Prompt Logic
+    const initFlow = async () => {
+      Alert.alert(
+        "Transfer Mode",
+        "Do you want to use Bluetooth for this transfer?",
+        [
+          {
+            text: "No (Use Internet)",
+            onPress: () => {
+              onNavigate('send');
+            },
+            style: 'cancel'
+          },
+          {
+            text: "Yes (Bluetooth)",
+            onPress: async () => {
+              startScanning();
+            }
+          }
+        ]
+      );
+    };
+
+    setTimeout(initFlow, 500);
+
     return () => {
       bluetoothService.off('deviceFound', handleDeviceFound);
       bluetoothService.off('deviceConnected', handleDeviceConnected);
       bluetoothService.off('deviceDisconnected', handleDeviceDisconnected);
       bluetoothService.off('scanStarted', handleScanStarted);
       bluetoothService.off('scanStopped', handleScanStopped);
+      stopScanning();
     };
   }, []);
-
-  const startScanning = async () => {
-    try {
-      await bluetoothService.requestPermissions();
-      await bluetoothService.startScanning();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to start scanning');
-    }
-  };
-
-  const stopScanning = () => {
-    bluetoothService.stopScanning();
-  };
 
   const connectToDevice = async (device: MockDevice) => {
     if (device.isConnected) {
@@ -109,6 +139,18 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
       Alert.alert('Error', 'Failed to connect to device');
     }
   };
+
+  const handlePay = (device: MockDevice) => {
+    if (!device.walletAddress) {
+      Alert.alert("Error", "Device has no wallet address set.");
+      return;
+    }
+    onNavigate('send', {
+      initialRecipient: device.walletAddress,
+      isBluetooth: true
+    });
+  };
+
   const addWalletToDevice = (device: MockDevice) => {
     Alert.prompt(
       'Add Wallet Address',
@@ -178,28 +220,44 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
       </View>
 
       <View style={styles.deviceActions}>
-        <TouchableOpacity
-          style={styles.fullWidthAction}
-          onPress={() => connectToDevice(device)}
-          disabled={connectingDeviceId === device.id}
-        >
-          <LinearGradient
-            colors={device.isConnected ? ['#ff6b6b', '#ff5252'] : ['#14F195', '#00D4A0']}
-            style={styles.actionButton}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            style={[styles.fullWidthAction, { flex: 1, marginBottom: 0 }]}
+            onPress={() => connectToDevice(device)}
+            disabled={connectingDeviceId === device.id}
           >
-            {connectingDeviceId === device.id ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.actionButtonText}>
-                {device.isConnected ? 'Disconnect' : 'Connect'}
-              </Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={device.isConnected ? ['#ff6b6b', '#ff5252'] : ['#2A2A3A', '#3A3A4A']}
+              style={styles.actionButton}
+            >
+              {connectingDeviceId === device.id ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={[styles.actionButtonText, !device.isConnected && { color: '#fff' }]}>
+                  {device.isConnected ? 'Disconnect' : 'Connect'}
+                </Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {device.isConnected && device.walletAddress && (
+            <TouchableOpacity
+              style={[styles.fullWidthAction, { flex: 1, marginBottom: 0 }]}
+              onPress={() => handlePay(device)}
+            >
+              <LinearGradient
+                colors={['#14F195', '#00D4A0']}
+                style={styles.actionButton}
+              >
+                <Text style={[styles.actionButtonText, { color: '#000' }]}>PAY</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {!device.walletAddress && (
           <TouchableOpacity
-            style={styles.addWalletButton}
+            style={[styles.addWalletButton, { marginTop: 10 }]}
             onPress={() => addWalletToDevice(device)}
           >
             <Text style={styles.addWalletText}>+ Wallet</Text>

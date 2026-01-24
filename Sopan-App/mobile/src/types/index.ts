@@ -1,12 +1,18 @@
 export interface Transaction {
   id: string;
+  type: 'send' | 'receive' | 'deploy';
   amount: number;
   recipient: string;
+  sender: string;
   timestamp: number;
   status: 'pending' | 'completed' | 'failed' | 'syncing';
   mode: 'offline' | 'online';
   signature?: string;
   txHash?: string;
+  memo?: string;
+  fee?: number;
+  contractId?: string;
+  isDeployment?: boolean;
 }
 
 export interface UserWallet {

@@ -4,15 +4,21 @@ import bs58 from 'bs58';
 
 export class StellarService {
   private server: StellarSdk.Horizon.Server;
+  private rpcServer: StellarSdk.rpc.Server;
   private network: string;
   private networkPassphrase: string;
+  // Contract ID from deployment
+  private PAYMENT_CONTRACT_ID = 'CBV5C5JWPKNZKR6TZN7K65P7WRN2OCRUUT7ZCGL5O4A3YBXU4SKS3524';
 
   constructor(network: string = 'testnet') {
     this.network = network;
     const horizonUrl = this.getHorizonUrl(network);
     this.server = new StellarSdk.Horizon.Server(horizonUrl);
-    this.networkPassphrase = network === 'mainnet' 
-      ? StellarSdk.Networks.PUBLIC 
+    // Initialize Soroban RPC Server
+    this.rpcServer = new StellarSdk.rpc.Server('https://soroban-testnet.stellar.org');
+
+    this.networkPassphrase = network === 'mainnet'
+      ? StellarSdk.Networks.PUBLIC
       : StellarSdk.Networks.TESTNET;
   }
 
@@ -29,7 +35,7 @@ export class StellarService {
 
   async createWallet(seed?: string): Promise<{ publicKey: string; secretKey: string }> {
     let keypair;
-    
+
     if (seed) {
       // Derive deterministic keypair from seed
       const seedBytes = new TextEncoder().encode(seed);
@@ -41,7 +47,7 @@ export class StellarService {
       keypair = StellarSdk.Keypair.random();
       console.log('⚠️ Created random Stellar wallet (no seed provided)');
     }
-    
+
     return {
       publicKey: keypair.publicKey(),
       secretKey: keypair.secret()
@@ -100,7 +106,7 @@ export class StellarService {
       };
     } catch (error) {
       console.error('Failed to subscribe to balance:', error);
-      return () => {};
+      return () => { };
     }
   }
 
@@ -113,21 +119,21 @@ export class StellarService {
   ): Promise<string> {
     try {
       console.log('📤 Preparing Stellar transaction...');
-      
+
       // Step 1: Create keypair from secret key
       const sourceKeypair = StellarSdk.Keypair.fromSecret(senderSecretKey);
-      
+
       // Step 2: Load source account
       const sourceAccount = await this.server.loadAccount(sourceKeypair.publicKey());
-      
+
       // Step 3: Check if recipient account exists
       const recipientExists = await this.accountExists(recipientPublicKey);
-      
+
       // Step 4: Determine asset (native XLM or custom token)
-      const paymentAsset = asset 
+      const paymentAsset = asset
         ? new StellarSdk.Asset(asset.code, asset.issuer)
         : StellarSdk.Asset.native();
-      
+
       // Step 5: Build transaction
       const transactionBuilder = new StellarSdk.TransactionBuilder(sourceAccount, {
         fee: StellarSdk.BASE_FEE,
@@ -164,7 +170,7 @@ export class StellarService {
       }
 
       const builtTransaction = transactionBuilder.build();
-      
+
       // Step 6: Sign transaction
       builtTransaction.sign(sourceKeypair);
 
@@ -174,7 +180,7 @@ export class StellarService {
       const result = await this.server.submitTransaction(builtTransaction);
 
       console.log('✅ Transaction confirmed:', result.hash);
-      
+
       return result.hash;
     } catch (error: any) {
       console.error('❌ Transaction failed:', error);
@@ -185,12 +191,107 @@ export class StellarService {
     }
   }
 
+  /**
+   * Send payment via the Fee-Deduction Smart Contract
+   * @param senderSecretKey User's secret key
+   * @param recipientPublicKey Recipient's address
+   * @param amount Amount in XLM
+   */
+  async sendWithServiceFee(
+    senderSecretKey: string,
+    recipientPublicKey: string,
+    amount: number
+  ): Promise<string> {
+    try {
+      console.log('📤 Preparing Smart Contract Payment...');
+      const sourceKeypair = StellarSdk.Keypair.fromSecret(senderSecretKey);
+      const sourceAccount = await this.server.loadAccount(sourceKeypair.publicKey());
+
+      // 1. Get Native Asset Contract ID (XLM)
+      const nativeAsset = StellarSdk.Asset.native();
+      const nativeContractId = nativeAsset.contractId(this.networkPassphrase);
+
+      // 2. Convert amount to stroops (i128)
+      // 1 XLM = 10,000,000 stroops
+      const amountStroops = BigInt(Math.floor(amount * 10_000_000));
+
+      // 3. Build Contract Call
+      const contract = new StellarSdk.Contract(this.PAYMENT_CONTRACT_ID);
+      const operation = contract.call(
+        'pay',
+        new StellarSdk.Address(sourceKeypair.publicKey()).toScVal(),
+        new StellarSdk.Address(recipientPublicKey).toScVal(),
+        new StellarSdk.Address(nativeContractId).toScVal(),
+        new StellarSdk.ScInt(amountStroops).toI128()
+      );
+
+      // 4. Build Initial Transaction
+      const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
+        fee: StellarSdk.BASE_FEE,
+        networkPassphrase: this.networkPassphrase
+      })
+        .addOperation(operation)
+        .setTimeout(30)
+        .build();
+
+      // 5. Simulate Transaction (Required for Soroban)
+      console.log('🔄 Simulating transaction...');
+      const simulation = await this.rpcServer.simulateTransaction(transaction);
+
+      if (StellarSdk.rpc.Api.isSimulationError(simulation)) {
+        console.error('Simulation failed', simulation);
+        throw new Error('Transaction simulation failed: ' + simulation.error);
+      }
+
+      // Assemble transaction with resources manually
+      // We need to set SorobanData based on simulation
+      if (simulation.transactionData) {
+        // Use type casting to bypass strict TS checks if methods are missing in typings
+        (transaction as any).setSorobanData(simulation.transactionData);
+        (transaction as any).addResourceFee(simulation.minResourceFee);
+      } else {
+        console.warn("⚠️ No transaction data from simulation");
+      }
+
+      transaction.sign(sourceKeypair);
+
+      console.log('🚀 Submitting Contract Call...');
+      const result = await this.rpcServer.sendTransaction(transaction);
+
+      if (result.status === 'PENDING') {
+        // Wait for completion (poll getTransaction)
+        let attempts = 0;
+        while (attempts < 10) {
+          await new Promise(r => setTimeout(r, 2000));
+          const status = await this.rpcServer.getTransaction(result.hash);
+          if (status.status === 'SUCCESS') {
+            console.log('✅ Contract Payment Confirmed:', result.hash);
+            return result.hash;
+          } else if (status.status === 'FAILED') {
+            throw new Error('Transaction execution failed');
+          }
+          attempts++;
+        }
+      } else if (result.status === ('SUCCESS' as any)) {
+        console.log('✅ Contract Payment Confirmed:', result.hash);
+        return result.hash;
+      } else {
+        console.error('Transmission failed', result);
+        throw new Error('Transaction submission failed');
+      }
+      return result.hash;
+    } catch (error: any) {
+      console.error('❌ Smart Contract Payment failed:', error);
+      throw error;
+    }
+  }
+
   async confirmTransaction(hash: string, maxRetries: number = 30): Promise<boolean> {
     try {
       for (let i = 0; i < maxRetries; i++) {
         try {
           const transaction = await this.server.transactions().transaction(hash).call();
-          
+
           if (transaction.successful) {
             console.log('✅ Transaction confirmed');
             return true;
@@ -234,7 +335,7 @@ export class StellarService {
       const response = await fetch(
         `https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`
       );
-      
+
       const responseJSON = await response.json();
       console.log('✅ Friendbot airdrop successful:', responseJSON);
       return responseJSON.hash || 'success';
@@ -244,25 +345,36 @@ export class StellarService {
     }
   }
 
-  async getRecentTransactions(publicKey: string, limit: number = 10): Promise<any[]> {
+  async getRecentTransactions(publicKey: string, limit: number = 20): Promise<any[]> {
+    // Actually using payments() as it's more useful for history displays
+    return this.getRecentPayments(publicKey, limit);
+  }
+
+  async getRecentPayments(publicKey: string, limit: number = 20): Promise<any[]> {
     try {
-      const transactions = await this.server
-        .transactions()
+      const payments = await this.server
+        .payments()
         .forAccount(publicKey)
         .limit(limit)
         .order('desc')
         .call();
 
-      return transactions.records.map((tx: any) => ({
-        hash: tx.hash,
-        timestamp: new Date(tx.created_at).getTime() / 1000,
-        status: tx.successful ? 'confirmed' : 'failed',
-        memo: tx.memo,
-        fee: tx.fee_charged,
-        ...tx
+      return payments.records.map((p: any) => ({
+        id: p.id,
+        hash: p.transaction_hash,
+        type: p.type === 'create_account' ? 'create' : 'payment',
+        from: p.from || p.funder || p.source_account,
+        to: p.to || p.into || p.account,
+        amount: p.amount || p.starting_balance || '0',
+        asset: p.asset_type === 'native' ? 'XLM' : p.asset_code,
+        timestamp: new Date(p.created_at).getTime(),
+        successful: p.transaction_successful !== false
       }));
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        return [];
+      }
+      console.error('Error fetching payments:', error);
       return [];
     }
   }
@@ -322,7 +434,7 @@ export class StellarService {
       // If limit is set, lock the issuer account after minting
       if (limit) {
         const issuerAccount = await this.server.loadAccount(issuerPublicKey);
-        
+
         const transaction = new StellarSdk.TransactionBuilder(issuerAccount, {
           fee: StellarSdk.BASE_FEE,
           networkPassphrase: this.networkPassphrase
@@ -340,7 +452,7 @@ export class StellarService {
 
         transaction.sign(issuerKeypair);
         await this.server.submitTransaction(transaction);
-        
+
         console.log(`🔒 Token supply locked at ${limit}`);
       }
 
