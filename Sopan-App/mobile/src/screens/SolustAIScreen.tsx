@@ -33,6 +33,18 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
   // Initialize Groq service with API key from .env on mount
   useEffect(() => {
     groqService.setApiKey('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');
+
+    // Diagnostic network test
+    const testNetwork = async () => {
+      try {
+        console.log('🌐 Testing general internet connectivity...');
+        const response = await fetch('https://google.com', { method: 'HEAD' });
+        console.log('✅ General internet access working:', response.ok);
+      } catch (err) {
+        console.error('❌ General internet access FAILED:', err);
+      }
+    };
+    testNetwork();
   }, []);
 
   const handleFileUpload = async () => {

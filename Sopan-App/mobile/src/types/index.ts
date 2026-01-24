@@ -22,6 +22,19 @@ export interface OfflineTransaction {
   timestamp: number;
   signature: string;
   nonce: string;
+  blockHash?: string; // Reference to the block it belongs to
+}
+
+export interface OfflineBlock {
+  index: number;
+  previousHash: string;
+  timestamp: number;
+  transactions: OfflineTransaction[];
+  hash: string;
+  nonce: number;
+  difficulty: number;
+  signatures: string[]; // Signatures from peer validators
+  cumulativeWork: number; // Sum of work for this chain
 }
 
 export interface BluetoothDevice {

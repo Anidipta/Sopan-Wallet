@@ -97,7 +97,7 @@ soroban-sdk = { version = "20.0.0", features = ["testutils"] }
 
 [profile.release]
 opt-level = "z"
-overflow-checks = true
+overflow-checks = false
 debug = 0
 strip = "symbols"
 debug-assertions = false
