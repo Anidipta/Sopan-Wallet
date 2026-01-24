@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.apk
+*.aab
+
+# Metro
+.metro-health-check*
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# OS
+.DS_Store
+*.pem
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Rust
+target/
+Cargo.lock
+
+# Build artifacts
+build/
+*.exe
+rustup-init.exe
+
+# Temporary files
+*.tmp
+*.temp
+
+# Keep important scripts
+!mobile/start-tunnel.bat
+
+contracts/

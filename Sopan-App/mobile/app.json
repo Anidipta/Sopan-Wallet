@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Sopan Wallet",
+    "slug": "Sopan",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0f0f23"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stellar.bluetoothpay",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to enable offline payments",
+        "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to enable offline payments"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f0f23"
+      },
+      "package": "com.stellar.bluetoothpay",
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_CONNECT",
+        "BLUETOOTH_SCAN",
+        "ACCESS_FINE_LOCATION",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
+      ]
+    },
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "434c43ab-81a7-41de-a174-530a3b452b72"
+      }
+    }
+  }
+}
