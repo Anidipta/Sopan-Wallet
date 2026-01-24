@@ -23,6 +23,7 @@ export interface OfflineTransaction {
   signature: string;
   nonce: string;
   blockHash?: string; // Reference to the block it belongs to
+  memo?: string;
 }
 
 export interface OfflineBlock {

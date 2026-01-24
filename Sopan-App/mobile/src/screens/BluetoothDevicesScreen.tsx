@@ -8,21 +8,34 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
-  ScrollView
+  ScrollView,
+  useWindowDimensions,
+  Platform
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { bluetoothSimulator, MockDevice } from '../services/BluetoothSimulator';
+import { Ionicons } from '@expo/vector-icons';
+import { bluetoothService } from '../services/BluetoothService';
+import { MockDevice } from '../services/BluetoothSimulator';
 
 interface BluetoothDevicesScreenProps {
   onBack: () => void;
 }
 
 const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack }) => {
+  const { width } = useWindowDimensions();
   const [devices, setDevices] = useState<MockDevice[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
+  const [localName, setLocalName] = useState('SOPAN Device');
+
+  const numColumns = width > 1000 ? 3 : width > 600 ? 2 : 1;
+  const cardWidth = (width - 40 - (numColumns - 1) * 16) / numColumns;
 
   useEffect(() => {
+    // Get local discovery name
+    const name = bluetoothService.getLocalName();
+    setLocalName(name);
+
     // Set up event listeners
     const handleDeviceFound = (device: MockDevice) => {
       setDevices(prev => {
@@ -51,40 +64,45 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
     const handleScanStarted = () => setIsScanning(true);
     const handleScanStopped = () => setIsScanning(false);
 
-    bluetoothSimulator.on('deviceFound', handleDeviceFound);
-    bluetoothSimulator.on('deviceConnected', handleDeviceConnected);
-    bluetoothSimulator.on('deviceDisconnected', handleDeviceDisconnected);
-    bluetoothSimulator.on('scanStarted', handleScanStarted);
-    bluetoothSimulator.on('scanStopped', handleScanStopped);
+    bluetoothService.on('deviceFound', handleDeviceFound);
+    bluetoothService.on('deviceConnected', handleDeviceConnected);
+    bluetoothService.on('deviceDisconnected', handleDeviceDisconnected);
+    bluetoothService.on('scanStarted', handleScanStarted);
+    bluetoothService.on('scanStopped', handleScanStopped);
 
     // Load existing devices
-    setDevices(bluetoothSimulator.getAllDevices());
+    setDevices(bluetoothService.getAllDevices());
 
     return () => {
-      bluetoothSimulator.removeAllListeners();
+      bluetoothService.off('deviceFound', handleDeviceFound);
+      bluetoothService.off('deviceConnected', handleDeviceConnected);
+      bluetoothService.off('deviceDisconnected', handleDeviceDisconnected);
+      bluetoothService.off('scanStarted', handleScanStarted);
+      bluetoothService.off('scanStopped', handleScanStopped);
     };
   }, []);
 
   const startScanning = async () => {
     try {
-      await bluetoothSimulator.startScanning();
+      await bluetoothService.requestPermissions();
+      await bluetoothService.startScanning();
     } catch (error) {
       Alert.alert('Error', 'Failed to start scanning');
     }
   };
 
   const stopScanning = () => {
-    bluetoothSimulator.stopScanning();
+    bluetoothService.stopScanning();
   };
 
   const connectToDevice = async (device: MockDevice) => {
     if (device.isConnected) {
-      bluetoothSimulator.disconnectDevice(device.id);
+      bluetoothService.disconnectDevice(device.id);
       return;
     }
 
     setConnectingDeviceId(device.id);
-    const success = await bluetoothSimulator.connectToDevice(device.id);
+    const success = await bluetoothService.connectToDevice(device.id);
 
     if (!success) {
       setConnectingDeviceId(null);
@@ -101,7 +119,7 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
           text: 'Add',
           onPress: (walletAddress?: string) => {
             if (walletAddress && walletAddress.length > 20) {
-              bluetoothSimulator.addTrustedDevice(device.id, walletAddress);
+              bluetoothService.addTrustedDevice(device.id, walletAddress);
               setDevices(prev => prev.map(d =>
                 d.id === device.id ? { ...d, walletAddress } : d
               ));
@@ -138,7 +156,7 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
   const renderDevice = ({ item: device }: { item: MockDevice }) => (
     <LinearGradient
       colors={['#1a1a2e', '#2a2a3e']}
-      style={styles.deviceCard}
+      style={[styles.deviceCard, { width: cardWidth }]}
     >
       <View style={styles.deviceHeader}>
         <View style={styles.deviceIconContainer}>
@@ -151,8 +169,8 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
           <Text style={styles.signalText}>{getSignalStrength(device.rssi)} {device.rssi}dBm</Text>
           {device.walletAddress && (
             <View style={styles.walletBadge}>
-              <Text style={styles.walletText}>
-                {device.walletAddress.slice(0, 6)}...{device.walletAddress.slice(-6)}
+              <Text style={styles.walletText} numberOfLines={1} ellipsizeMode="middle">
+                {device.walletAddress}
               </Text>
             </View>
           )}
@@ -161,6 +179,7 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
 
       <View style={styles.deviceActions}>
         <TouchableOpacity
+          style={styles.fullWidthAction}
           onPress={() => connectToDevice(device)}
           disabled={connectingDeviceId === device.id}
         >
@@ -194,7 +213,7 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Nearby Devices</Text>
         <TouchableOpacity
@@ -208,10 +227,19 @@ const BluetoothDevicesScreen: React.FC<BluetoothDevicesScreenProps> = ({ onBack 
         </TouchableOpacity>
       </View>
 
+      <View style={styles.discoverableBanner}>
+        <Text style={styles.discoverableText}>
+          NOW DISCOVERABLE AS <Text style={styles.localNameBold}>"{localName.toUpperCase()}"</Text>
+        </Text>
+      </View>
+
       <FlatList
         data={devices}
+        key={numColumns}
+        numColumns={numColumns}
         keyExtractor={(item) => item.id}
         renderItem={renderDevice}
+        contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={isScanning}
@@ -251,10 +279,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 24,
-  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -281,97 +305,159 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   deviceCard: {
-    backgroundColor: 'rgba(153, 69, 255, 0.1)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(15, 15, 25, 0.95)',
+    borderRadius: 8,
     padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 16,
+    marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: 'rgba(153, 69, 255, 0.3)',
+    borderColor: 'rgba(153, 69, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
   },
   deviceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   deviceIcon: {
-    fontSize: 24,
+    fontSize: 28,
     marginRight: 12,
   },
   deviceInfo: {
     flex: 1,
   },
   deviceName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#fff',
     marginBottom: 2,
+    letterSpacing: 0.5,
   },
   deviceType: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 4,
-  },
-  walletAddress: {
     fontSize: 11,
-    color: '#00d4aa',
-    fontFamily: 'monospace',
-  },
-  deviceStatus: {
-    alignItems: 'flex-end',
-  },
-  signalStrength: {
-    fontSize: 16,
-    marginBottom: 2,
-  },
-  rssi: {
-    fontSize: 10,
     color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  walletBadge: {
+    backgroundColor: 'rgba(20, 241, 149, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 4,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(20, 241, 149, 0.15)',
+  },
+  walletText: {
+    color: '#14F195',
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontWeight: '600',
+  },
+  deviceIconContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
+  statusDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#444',
+    borderWidth: 2,
+    borderColor: '#0f0f19',
+  },
+  connectedDot: {
+    backgroundColor: '#14F195',
+  },
+  signalText: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 4,
   },
   deviceActions: {
-    flexDirection: 'row',
-    gap: 8,
+    flexDirection: 'column',
+    width: '100%',
+    marginTop: 12,
+  },
+  fullWidthAction: {
+    width: '100%',
+    marginBottom: 10,
   },
   actionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    minWidth: 80,
+    paddingVertical: 16,
+    borderRadius: 4,
+    width: '100%',
     alignItems: 'center',
-  },
-  connectButton: {
-    backgroundColor: '#00d4aa',
-  },
-  disconnectButton: {
-    backgroundColor: '#ff6b6b',
+    justifyContent: 'center',
   },
   actionButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 12,
+    color: '#000',
+    fontWeight: '900',
+    fontSize: 15,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   addWalletButton: {
-    backgroundColor: '#4a4a5e',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingVertical: 12,
+    borderRadius: 4,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   addWalletText: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   emptyState: {
     alignItems: 'center',
-    marginTop: 60,
+    marginTop: 100,
   },
   emptyText: {
-    fontSize: 18,
-    color: '#888',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
     color: '#666',
+    textAlign: 'center',
+  },
+  discoverableBanner: {
+    backgroundColor: 'rgba(20, 241, 149, 0.05)',
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderTopWidth: 1,
+    borderColor: 'rgba(20, 241, 149, 0.1)',
+  },
+  discoverableText: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  localNameBold: {
+    color: '#14F195',
+    fontWeight: '900',
   },
 });
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StorageService } from '../services/StorageService';
 import { BiometricService } from '../services/BiometricService';
 import { NotificationService } from '../services/NotificationService';
@@ -41,7 +42,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const checkBiometric = async () => {
     const available = await biometric.isAvailable();
     setBiometricAvailable(available);
-    
+
     if (available) {
       const types = await biometric.getSupportedTypes();
       setBiometricTypes(types);
@@ -155,7 +156,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Settings</Text>
         <View style={{ width: 40 }} />
@@ -165,7 +166,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         {/* Network Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Network</Text>
-          
+
           <View style={styles.card}>
             <TouchableOpacity
               style={[styles.option, network === 'testnet' && styles.optionSelected]}
@@ -205,7 +206,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         {/* Currency Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Display Currency</Text>
-          
+
           <View style={styles.card}>
             {['USD', 'EUR', 'GBP'].map((curr) => (
               <TouchableOpacity
@@ -223,7 +224,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         {/* Security Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Security</Text>
-          
+
           <View style={styles.card}>
             <View style={styles.switchOption}>
               <View style={styles.optionContent}>
@@ -256,7 +257,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         {/* Notification Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
-          
+
           <View style={styles.card}>
             <View style={styles.switchOption}>
               <View style={styles.optionContent}>
@@ -276,7 +277,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         {/* App Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>App</Text>
-          
+
           <View style={styles.card}>
             <TouchableOpacity style={styles.option} onPress={handleClearCache}>
               <View style={styles.optionContent}>
@@ -320,15 +321,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#222',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 24,
   },
   title: {
     fontSize: 24,

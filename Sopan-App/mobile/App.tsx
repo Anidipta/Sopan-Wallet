@@ -5,15 +5,24 @@ global.Buffer = Buffer;
 
 // Polyfill for EventSource (Stellar SDK streaming)
 if (typeof global.EventSource === 'undefined') {
-  global.EventSource = class EventSource {
-    constructor(url) {
+  class MockEventSource {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    static CLOSED = 2;
+    CONNECTING = 0;
+    OPEN = 1;
+    CLOSED = 2;
+    url: string;
+    readyState: number = 0;
+
+    constructor(url: string) {
       this.url = url;
-      this.readyState = 0;
     }
     addEventListener() { }
     removeEventListener() { }
     close() { }
-  };
+  }
+  (global as any).EventSource = MockEventSource;
 }
 
 import React, { useState, useEffect } from 'react';
@@ -26,6 +35,7 @@ import { SolustAIScreen } from './src/screens/SolustAIScreen';
 import { StorageService } from './src/services/StorageService';
 import { NotificationService } from './src/services/NotificationService';
 import { ErrorRecoveryService } from './src/services/ErrorRecoveryService';
+import { PaymentService } from './src/services/PaymentService';
 
 export default function App() {
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
@@ -35,6 +45,10 @@ export default function App() {
 
   useEffect(() => {
     initializeApp();
+
+    // Start auto-sync for offline transactions
+    const paymentService = new PaymentService();
+    paymentService.startAutoSync();
 
     // Handle app state changes
     const subscription = AppState.addEventListener('change', handleAppStateChange);

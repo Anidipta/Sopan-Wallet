@@ -143,6 +143,12 @@ export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = 
           <TouchableOpacity style={styles.scanButton}>
             <Ionicons name="scan" size={24} color="#fff" />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => onNavigate('profile')}
+          >
+            <Ionicons name="person-outline" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
 
 
@@ -277,22 +283,6 @@ export const WalletScreen: React.FC<{ onNavigate: (screen: string) => void }> = 
             <Text style={styles.emptyStateText}>No collectibles yet</Text>
           </View>
         )}
-
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navButton}>
-            <Ionicons name="time-outline" size={24} color="#666" />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.navButton, styles.activeNavButton]}>
-            <Ionicons name="home" size={24} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => onNavigate('profile')}
-          >
-            <Ionicons name="person-outline" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </LinearGradient>
   );

@@ -1,11 +1,12 @@
 {
   "name": "Sopan",
   "version": "1.0.0",
+  "type": "module",
   "description": "Offline-first Stellar payment app with Bluetooth support",
   "main": "node_modules/expo/AppEntry.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/Sopan.git"
+    "url": "https://github.com/Anidipta/Sopan-Wallet.git"
   },
   "keywords": [
     "stellar",

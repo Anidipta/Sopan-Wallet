@@ -12,6 +12,7 @@ import { SettingsScreen } from './SettingsScreen';
 import { TransactionDetailsScreen } from './TransactionDetailsScreen';
 import { SolustAIScreen } from './SolustAIScreen';
 import { NotificationService } from '../services/NotificationService';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 interface HomeScreenProps {
   onLogout: () => void;
@@ -84,7 +85,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogout }) => {
           />
         );
       case 'solust':
-        return <SolustAIScreen onBack={() => setCurrentScreen('wallet')} />;
+        return (
+          <ErrorBoundary>
+            <SolustAIScreen onBack={() => setCurrentScreen('wallet')} />
+          </ErrorBoundary>
+        );
       case 'wallet':
       default:
         return <WalletScreen onNavigate={setCurrentScreen} />;

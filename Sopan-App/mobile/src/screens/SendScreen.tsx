@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { PaymentService } from '../services/PaymentService';
 import { StorageService } from '../services/StorageService';
 import { BiometricService } from '../services/BiometricService';
@@ -73,85 +74,91 @@ export const SendScreen: React.FC<SendScreenProps> = ({ onBack, onScanQR, initia
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Send XLM</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.form}>
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Recipient Address</Text>
-          <TextInput
-            style={[styles.input, initialRecipient && styles.inputAutofilled]}
-            placeholder="Enter Stellar address (G...)"
-            placeholderTextColor="#666"
-            value={recipient}
-            onChangeText={setRecipient}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {initialRecipient && (
-            <View style={styles.autofilledBadge}>
-              <Text style={styles.autofilledText}>✓ From QR Scan</Text>
+      <ScrollView
+        style={styles.formScroll}
+        contentContainerStyle={styles.formContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.form}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Recipient Address</Text>
+            <TextInput
+              style={[styles.input, initialRecipient && styles.inputAutofilled]}
+              placeholder="Enter Stellar address (G...)"
+              placeholderTextColor="#666"
+              value={recipient}
+              onChangeText={setRecipient}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {initialRecipient && (
+              <View style={styles.autofilledBadge}>
+                <Text style={styles.autofilledText}>✓ From QR Scan</Text>
+              </View>
+            )}
+            <TouchableOpacity style={styles.scanButton} onPress={onScanQR}>
+              <Text style={styles.scanButtonText}>📷 Scan QR</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Amount (XLM)</Text>
+            <View style={styles.amountInputWrapper}>
+              <TextInput
+                style={styles.amountInput}
+                placeholder="0.00"
+                placeholderTextColor="#666"
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="decimal-pad"
+              />
+              <Text style={styles.currency}>XLM</Text>
             </View>
-          )}
-          <TouchableOpacity style={styles.scanButton} onPress={onScanQR}>
-            <Text style={styles.scanButtonText}>📷 Scan QR</Text>
+            <View style={styles.quickAmounts}>
+              {['0.1', '0.5', '1.0', '5.0'].map((amt) => (
+                <TouchableOpacity
+                  key={amt}
+                  style={styles.quickAmountButton}
+                  onPress={() => setAmount(amt)}
+                >
+                  <Text style={styles.quickAmountText}>{amt}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.summary}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Network Fee</Text>
+              <Text style={styles.summaryValue}>~0.00001 XLM</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total</Text>
+              <Text style={styles.summaryValueBold}>
+                {amount ? (parseFloat(amount) + 0.00001).toFixed(6) : '0.00'} XLM
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.sendButton, loading && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <Text style={styles.sendButtonText}>Send Payment</Text>
+            )}
           </TouchableOpacity>
         </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Amount (XLM)</Text>
-          <View style={styles.amountInputWrapper}>
-            <TextInput
-              style={styles.amountInput}
-              placeholder="0.00"
-              placeholderTextColor="#666"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.currency}>XLM</Text>
-          </View>
-          <View style={styles.quickAmounts}>
-            {['0.1', '0.5', '1.0', '5.0'].map((amt) => (
-              <TouchableOpacity
-                key={amt}
-                style={styles.quickAmountButton}
-                onPress={() => setAmount(amt)}
-              >
-                <Text style={styles.quickAmountText}>{amt}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.summary}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Network Fee</Text>
-            <Text style={styles.summaryValue}>~0.00001 XLM</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total</Text>
-            <Text style={styles.summaryValueBold}>
-              {amount ? (parseFloat(amount) + 0.00001).toFixed(6) : '0.00'} XLM
-            </Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.sendButton, loading && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#000" />
-          ) : (
-            <Text style={styles.sendButtonText}>Send Payment</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 };
@@ -172,18 +179,20 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1A1A24',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 24,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  formScroll: {
+    flex: 1,
+  },
+  formContainer: {
+    paddingBottom: 40,
   },
   form: {
     padding: 20,

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StorageService } from '../services/StorageService';
 import { StellarService } from '../services/StellarService';
 import SopanIcon from '../components/SopanIcon';
-import { Image } from 'react-native';
+import { LoadingScreen } from './LoadingScreen';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -35,14 +36,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     try {
       // Save user data
       await storage.saveUserData(email, phone);
-      
+
       // Create deterministic Stellar wallet from email+phone (so it's always the same)
       const seed = `sopan:${email}:${phone}`;
       const wallet = await stellar.createWallet(seed);
       await storage.saveWallet(wallet.publicKey, wallet.secretKey);
-      
+
       console.log('✅ Stellar wallet created:', wallet.publicKey.substring(0, 8) + '...');
-      
+
       onComplete();
     } catch (error) {
       console.error('Registration failed:', error);
@@ -63,13 +64,13 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       // Recreate Stellar wallet from credentials
       const seed = `sopan:${email}:${phone}`;
       const wallet = await stellar.createWallet(seed);
-      
+
       // Save to storage
       await storage.saveUserData(email, phone);
       await storage.saveWallet(wallet.publicKey, wallet.secretKey);
-      
+
       console.log('✅ Logged in with Stellar wallet:', wallet.publicKey.substring(0, 8) + '...');
-      
+
       onComplete();
     } catch (error) {
       console.error('Login failed:', error);
@@ -80,10 +81,15 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {loading && (
+        <View style={StyleSheet.absoluteFill}>
+          <LoadingScreen />
+        </View>
+      )}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {mode === 'welcome' ? (
           <View style={styles.stepContainer}>
@@ -121,15 +127,15 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               </View>
             </View>
 
-            <TouchableOpacity 
-              style={styles.button} 
+            <TouchableOpacity
+              style={styles.button}
               onPress={() => setMode('register')}
             >
               <Text style={styles.buttonText}>Create New Account</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.secondaryButton} 
+            <TouchableOpacity
+              style={styles.secondaryButton}
               onPress={() => setMode('login')}
             >
               <Text style={styles.secondaryButtonText}>Login with Existing Account</Text>
@@ -178,8 +184,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               </View>
             </View>
 
-            <TouchableOpacity 
-              style={[styles.button, loading && styles.buttonDisabled]} 
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleLogin}
               disabled={loading}
             >
@@ -188,11 +194,11 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.backButton} 
+            <TouchableOpacity
+              style={styles.backButtonCircle}
               onPress={() => setMode('welcome')}
             >
-              <Text style={styles.backButtonText}>← Back</Text>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
         ) : (
@@ -205,117 +211,117 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
             </View>
 
             {step === 1 ? (
-          <View style={styles.stepContainer}>
-            <View style={styles.logoContainer}>
-              <Image source={SopanIcon} style={{ width: 80, height: 80, resizeMode: 'contain' }} />
-            </View>
-            <Text style={styles.title}>Welcome to SOPAN</Text>
-            <Text style={styles.subtitle}>
-              Send payments online or offline with Bluetooth. Your crypto wallet for any situation.
-            </Text>
-
-            <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="John Doe"
-                  placeholderTextColor="#666"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Email Address</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="john@example.com"
-                  placeholderTextColor="#666"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Phone Number</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="+1 (555) 123-4567"
-                  placeholderTextColor="#666"
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.button} onPress={handleNext}>
-              <Text style={styles.buttonText}>Continue</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.stepContainer}>
-            <View style={styles.logoContainer}>
-              <Image source={SopanIcon} style={{ width: 80, height: 80, resizeMode: 'contain' }} />
-            </View>
-            <Text style={styles.title}>Secure Wallet Setup</Text>
-            <Text style={styles.subtitle}>
-              We'll create a secure Stellar wallet for you. Your keys are encrypted and stored only on your device.
-            </Text>
-
-            <View style={styles.featureList}>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✓</Text>
-                <View style={styles.featureContent}>
-                  <Text style={styles.featureTitle}>End-to-End Encryption</Text>
-                  <Text style={styles.featureText}>Your private keys never leave your device</Text>
+              <View style={styles.stepContainer}>
+                <View style={styles.logoContainer}>
+                  <Image source={SopanIcon} style={{ width: 80, height: 80, resizeMode: 'contain' }} />
                 </View>
-              </View>
+                <Text style={styles.title}>Welcome to SOPAN</Text>
+                <Text style={styles.subtitle}>
+                  Send payments online or offline with Bluetooth. Your crypto wallet for any situation.
+                </Text>
 
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✓</Text>
-                <View style={styles.featureContent}>
-                  <Text style={styles.featureTitle}>Offline Payments</Text>
-                  <Text style={styles.featureText}>Send SOL via Bluetooth without internet</Text>
+                <View style={styles.form}>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Full Name</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="John Doe"
+                      placeholderTextColor="#666"
+                      value={name}
+                      onChangeText={setName}
+                      autoCapitalize="words"
+                    />
+                  </View>
+
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Email Address</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="john@example.com"
+                      placeholderTextColor="#666"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Phone Number</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="+1 (555) 123-4567"
+                      placeholderTextColor="#666"
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✓</Text>
-                <View style={styles.featureContent}>
-                  <Text style={styles.featureTitle}>Auto-Sync</Text>
-                  <Text style={styles.featureText}>Transactions sync when you're back online</Text>
+                <TouchableOpacity style={styles.button} onPress={handleNext}>
+                  <Text style={styles.buttonText}>Continue</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.stepContainer}>
+                <View style={styles.logoContainer}>
+                  <Image source={SopanIcon} style={{ width: 80, height: 80, resizeMode: 'contain' }} />
                 </View>
-              </View>
+                <Text style={styles.title}>Secure Wallet Setup</Text>
+                <Text style={styles.subtitle}>
+                  We'll create a secure Stellar wallet for you. Your keys are encrypted and stored only on your device.
+                </Text>
 
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✓</Text>
-                <View style={styles.featureContent}>
-                  <Text style={styles.featureTitle}>Stellar Blockchain</Text>
-                  <Text style={styles.featureText}>Fast (3-5s), secure, and ultra low-cost transactions</Text>
+                <View style={styles.featureList}>
+                  <View style={styles.featureItem}>
+                    <Text style={styles.featureIcon}>✓</Text>
+                    <View style={styles.featureContent}>
+                      <Text style={styles.featureTitle}>End-to-End Encryption</Text>
+                      <Text style={styles.featureText}>Your private keys never leave your device</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.featureItem}>
+                    <Text style={styles.featureIcon}>✓</Text>
+                    <View style={styles.featureContent}>
+                      <Text style={styles.featureTitle}>Offline Payments</Text>
+                      <Text style={styles.featureText}>Send SOL via Bluetooth without internet</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.featureItem}>
+                    <Text style={styles.featureIcon}>✓</Text>
+                    <View style={styles.featureContent}>
+                      <Text style={styles.featureTitle}>Auto-Sync</Text>
+                      <Text style={styles.featureText}>Transactions sync when you're back online</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.featureItem}>
+                    <Text style={styles.featureIcon}>✓</Text>
+                    <View style={styles.featureContent}>
+                      <Text style={styles.featureTitle}>Stellar Blockchain</Text>
+                      <Text style={styles.featureText}>Fast (3-5s), secure, and ultra low-cost transactions</Text>
+                    </View>
+                  </View>
                 </View>
+
+                <TouchableOpacity
+                  style={[styles.button, loading && styles.buttonDisabled]}
+                  onPress={handleRegister}
+                  disabled={loading}
+                >
+                  <Text style={styles.buttonText}>
+                    {loading ? 'Creating Wallet...' : 'Create Wallet & Get Started'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.backButtonCircle} onPress={() => setStep(1)}>
+                  <Ionicons name="arrow-back" size={24} color="#fff" />
+                </TouchableOpacity>
               </View>
-            </View>
-
-            <TouchableOpacity 
-              style={[styles.button, loading && styles.buttonDisabled]} 
-              onPress={handleRegister}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>
-                {loading ? 'Creating Wallet...' : 'Create Wallet & Get Started'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+            )}
           </>
         )}
       </ScrollView>
@@ -448,10 +454,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  backButton: {
-    marginTop: 16,
-    padding: 12,
+  backButtonCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 20,
+    alignSelf: 'center',
   },
   backButtonText: {
     color: '#888',

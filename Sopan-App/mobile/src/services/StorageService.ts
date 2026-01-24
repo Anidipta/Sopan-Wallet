@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { Transaction, OfflineTransaction } from '../types';
 
 export class StorageService {
@@ -8,6 +9,10 @@ export class StorageService {
   private USER_DATA_KEY = 'user_data';
 
   async saveWallet(publicKey: string, encryptedPrivateKey: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      await AsyncStorage.setItem(this.WALLET_KEY, JSON.stringify({ publicKey, encryptedPrivateKey }));
+      return;
+    }
     await SecureStore.setItemAsync(
       this.WALLET_KEY,
       JSON.stringify({ publicKey, encryptedPrivateKey })
@@ -15,6 +20,10 @@ export class StorageService {
   }
 
   async getWallet(): Promise<{ publicKey: string; encryptedPrivateKey: string } | null> {
+    if (Platform.OS === 'web') {
+      const data = await AsyncStorage.getItem(this.WALLET_KEY);
+      return data ? JSON.parse(data) : null;
+    }
     const data = await SecureStore.getItemAsync(this.WALLET_KEY);
     return data ? JSON.parse(data) : null;
   }
@@ -85,5 +94,13 @@ export class StorageService {
     ]);
 
     console.log('✅ All user data cleared');
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    await AsyncStorage.setItem(key, value);
+  }
+
+  async getItem(key: string): Promise<string | null> {
+    return await AsyncStorage.getItem(key);
   }
 }

@@ -59,3 +59,5 @@ rustup-init.exe
 
 # Keep important scripts
 !mobile/start-tunnel.bat
+
+contracts/

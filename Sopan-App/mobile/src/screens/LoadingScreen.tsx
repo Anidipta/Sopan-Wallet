@@ -2,43 +2,88 @@ import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'react-native';
-import SopanIcon from '../components/SopanIcon';
+import logoFull from '../../assets/images/logo-icon.png';
 
 export const LoadingScreen: React.FC = () => {
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const rotateAnim = useRef(new Animated.Value(0)).current;
+    const rippleAnim = useRef(new Animated.Value(0)).current;
+    const rippleOpacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Pulse animation for logo
+        // Heartbeat pulse animation
         Animated.loop(
             Animated.sequence([
                 Animated.timing(pulseAnim, {
-                    toValue: 1.2,
-                    duration: 1000,
-                    easing: Easing.inOut(Easing.ease),
+                    toValue: 1.15,
+                    duration: 150,
+                    easing: Easing.out(Easing.quad),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 1.05,
+                    duration: 150,
+                    easing: Easing.in(Easing.quad),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 1.25,
+                    duration: 200,
+                    easing: Easing.out(Easing.quad),
                     useNativeDriver: true,
                 }),
                 Animated.timing(pulseAnim, {
                     toValue: 1,
-                    duration: 1000,
-                    easing: Easing.inOut(Easing.ease),
+                    duration: 500,
+                    easing: Easing.inOut(Easing.quad),
                     useNativeDriver: true,
                 }),
             ])
         ).start();
 
-        // Rotation animation for gradient effect
+        // White Ripple effect (faded out circle)
+        Animated.loop(
+            Animated.parallel([
+                Animated.sequence([
+                    Animated.timing(rippleAnim, {
+                        toValue: 3,
+                        duration: 1000,
+                        easing: Easing.out(Easing.quad),
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(rippleAnim, {
+                        toValue: 0,
+                        duration: 0,
+                        useNativeDriver: true,
+                    })
+                ]),
+                Animated.sequence([
+                    Animated.timing(rippleOpacity, {
+                        toValue: 0.5,
+                        duration: 200,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(rippleOpacity, {
+                        toValue: 0,
+                        duration: 800,
+                        useNativeDriver: true,
+                    })
+                ])
+            ])
+        ).start();
+
+        // Continuous logo rotation
         Animated.loop(
             Animated.timing(rotateAnim, {
                 toValue: 1,
-                duration: 3000,
+                duration: 4000,
                 easing: Easing.linear,
                 useNativeDriver: true,
             })
         ).start();
     }, []);
 
-    const rotate = rotateAnim.interpolate({
+    const logoRotate = rotateAnim.interpolate({
         inputRange: [0, 1],
         outputRange: ['0deg', '360deg'],
     });
@@ -46,34 +91,37 @@ export const LoadingScreen: React.FC = () => {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={['#000000', '#1a0033', '#330033', '#4d1a4d', '#663366', '#331a00', '#4d2600', '#663300']}
-                locations={[0, 0.2, 0.35, 0.5, 0.65, 0.75, 0.85, 1]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                colors={['#000000', '#0a0a0f', '#12121a']}
                 style={styles.gradient}
             >
+                {/* Expanding White Ripple */}
                 <Animated.View
                     style={[
-                        styles.glowContainer,
+                        styles.ripple,
                         {
-                            transform: [{ rotate }],
+                            opacity: rippleOpacity,
+                            transform: [{ scale: rippleAnim }],
                         },
                     ]}
-                >
-                    <View style={styles.glow1} />
-                    <View style={styles.glow2} />
-                </Animated.View>
+                />
 
                 <Animated.View
                     style={[
                         styles.logoContainer,
                         {
-                            transform: [{ scale: pulseAnim }],
+                            transform: [
+                                { scale: pulseAnim },
+                                { rotate: logoRotate }
+                            ],
                         },
                     ]}
                 >
-                    <Image source={SopanIcon} style={styles.logo} />
+                    <Image source={logoFull} style={styles.logo} />
                 </Animated.View>
+
+                <Animated.Text style={styles.loadingText}>
+                    INITIALIZING WALLET...
+                </Animated.Text>
             </LinearGradient>
         </View>
     );
@@ -89,50 +137,36 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    glowContainer: {
+    ripple: {
         position: 'absolute',
-        width: 300,
-        height: 300,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    glow1: {
-        position: 'absolute',
-        width: 200,
-        height: 200,
-        borderRadius: 100,
-        backgroundColor: '#9945FF',
-        opacity: 0.3,
-        shadowColor: '#9945FF',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 50,
-        elevation: 10,
-    },
-    glow2: {
-        position: 'absolute',
-        width: 150,
-        height: 150,
-        borderRadius: 75,
-        backgroundColor: '#FF6B35',
-        opacity: 0.2,
-        shadowColor: '#FF6B35',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.6,
-        shadowRadius: 40,
-        elevation: 8,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.8)',
     },
     logoContainer: {
         zIndex: 10,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-        borderRadius: 80,
-        padding: 30,
-        borderWidth: 2,
-        borderColor: 'rgba(153, 69, 255, 0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#FFFFFF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
     },
     logo: {
-        width: 100,
-        height: 100,
+        width: 120,
+        height: 120,
         resizeMode: 'contain',
     },
+    loadingText: {
+        position: 'absolute',
+        bottom: 80,
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 4,
+        opacity: 0.6,
+    }
 });

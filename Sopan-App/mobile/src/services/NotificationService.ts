@@ -6,13 +6,15 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
 export class NotificationService {
   private static instance: NotificationService;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): NotificationService {
     if (!NotificationService.instance) {
@@ -22,6 +24,10 @@ export class NotificationService {
   }
 
   async requestPermissions(): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      console.log('🔔 Notifications skipped on web');
+      return true;
+    }
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;

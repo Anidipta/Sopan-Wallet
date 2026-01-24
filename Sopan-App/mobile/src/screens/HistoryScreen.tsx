@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
 import { StorageService } from '../services/StorageService';
 import { StellarService } from '../services/StellarService';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Transaction {
   id: string;
@@ -12,7 +13,6 @@ interface Transaction {
   timestamp: number;
   status: 'completed' | 'pending' | 'syncing' | 'failed';
   mode: 'online' | 'offline';
-  txHash?: string;
   txHash?: string;
   contractId?: string;
   isDeployment?: boolean;
@@ -139,7 +139,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Transaction History</Text>
         <View style={{ width: 40 }} />
@@ -210,7 +210,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onBack, onTransact
               <View style={styles.transactionInfo}>
                 <View style={styles.transactionHeader}>
                   <Text style={styles.transactionType}>
-                    {tx.type === 'send' ? 'Sent to' : 'Received from'}
+                    {tx.sender?.startsWith('GAIH3B') || tx.sender?.startsWith('GCAUC6') ? 'Friendbot Funds' : (tx.type === 'send' ? 'Sent to' : 'Received from')}
                   </Text>
                   {tx.mode === 'offline' && (
                     <View style={styles.offlineBadge}>
@@ -277,10 +277,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(153, 69, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 24,
   },
   title: {
     fontSize: 24,

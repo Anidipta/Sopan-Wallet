@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StorageService } from '../services/StorageService';
 import { StellarService } from '../services/StellarService';
 import SopanIcon from '../components/SopanIcon';
@@ -74,7 +75,7 @@ export const ProfileScreen: React.FC<{ onBack: () => void; onLogout: () => void 
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Profile</Text>
         <View style={{ width: 40 }} />
@@ -248,13 +249,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1A1A24',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 24,
   },
   title: {
     fontSize: 24,

@@ -4,7 +4,7 @@ export interface MockDevice {
   walletAddress?: string;
   rssi: number;
   isConnected: boolean;
-  deviceType: 'Samsung' | 'Vivo' | 'iPhone' | 'OnePlus' | 'Xiaomi';
+  deviceType: 'Samsung' | 'Vivo' | 'iPhone' | 'OnePlus' | 'Xiaomi' | 'Desktop';
   lastSeen: Date;
 }
 
@@ -52,7 +52,7 @@ export class BluetoothSimulator extends SimpleEventEmitter {
         lastSeen: new Date()
       },
       {
-        id: 'device-2', 
+        id: 'device-2',
         name: 'Vivo V30 Pro',
         walletAddress: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
         rssi: -62,
@@ -61,18 +61,19 @@ export class BluetoothSimulator extends SimpleEventEmitter {
         lastSeen: new Date()
       },
       {
-        id: 'device-3',
-        name: 'iPhone 15 Pro',
-        rssi: -38,
+        id: 'device-web-1',
+        name: 'SOPAN WEB PEER (CHROME)',
+        walletAddress: 'GDMMWKYZRMIEMF32PSVIJ5MP4XQN7E5JW4WT4TZ4APJS653PEJDTHFMC',
+        rssi: -15,
         isConnected: false,
-        deviceType: 'iPhone',
+        deviceType: 'Desktop',
         lastSeen: new Date()
       },
       {
-        id: 'device-4',
-        name: 'OnePlus 12',
-        walletAddress: '7SsNDQ4bdTMAz1W9hYdYRPybmWMjMmmbttAkQBXJ5J8Z',
-        rssi: -35,
+        id: 'device-desktop',
+        name: 'SOPAN Desktop (Electron)',
+        walletAddress: 'GDESK7NODE2SOPANWALLET7SYSTEM7NODE2SOPANWALLET',
+        rssi: -10,
         isConnected: false,
         deviceType: 'OnePlus',
         lastSeen: new Date()
@@ -97,11 +98,11 @@ export class BluetoothSimulator extends SimpleEventEmitter {
 
       this.isScanning = true;
       this.emit('scanStarted');
-      
+
       // Simulate discovering devices over time
       let deviceIndex = 0;
       const deviceArray = Array.from(this.devices.values());
-      
+
       this.scanInterval = setInterval(() => {
         if (deviceIndex < deviceArray.length) {
           const device = deviceArray[deviceIndex];
@@ -118,7 +119,7 @@ export class BluetoothSimulator extends SimpleEventEmitter {
 
   stopScanning(): void {
     if (!this.isScanning) return;
-    
+
     this.isScanning = false;
     if (this.scanInterval) {
       clearInterval(this.scanInterval);
@@ -161,7 +162,7 @@ export class BluetoothSimulator extends SimpleEventEmitter {
   }
 
   // Send payment through "Bluetooth" - real transaction for OnePlus device
-  async sendPayment(deviceId: string, amount: number, memo?: string): Promise<{success: boolean, txHash?: string, error?: string}> {
+  async sendPayment(deviceId: string, amount: number, memo?: string): Promise<{ success: boolean, txHash?: string, error?: string }> {
     const device = this.devices.get(deviceId);
     if (!device || !device.isConnected) {
       return { success: false, error: 'Device not connected' };
@@ -173,7 +174,7 @@ export class BluetoothSimulator extends SimpleEventEmitter {
 
     // Emit payment started
     this.emit('paymentStarted', { device, amount, memo });
-    
+
     // Check if this is the OnePlus device with real wallet
     if (device.id === 'device-4' && device.walletAddress === '7SsNDQ4bdTMAz1W9hYdYRPybmWMjMmmbttAkQBXJ5J8Z') {
       // Make real Solana transaction
@@ -190,7 +191,7 @@ export class BluetoothSimulator extends SimpleEventEmitter {
       return new Promise((resolve) => {
         setTimeout(() => {
           const success = Math.random() > 0.1; // 90% success rate
-          
+
           if (success) {
             const mockTxHash = this.generateMockTxHash();
             this.emit('paymentCompleted', { device, amount, txHash: mockTxHash, isReal: false });
@@ -207,22 +208,22 @@ export class BluetoothSimulator extends SimpleEventEmitter {
   private async makeRealSolanaTransaction(recipientAddress: string, amount: number, memo?: string): Promise<string> {
     // Import Solana web3 for real transaction
     const { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-    
+
     // Use devnet for testing
     const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-    
+
     // This would need the user's actual wallet to sign
     // For now, we'll simulate a successful transaction hash
     // In a real implementation, you'd use the user's wallet to sign and send
-    
+
     console.log(`🚀 Making real Solana transaction:`);
     console.log(`   To: ${recipientAddress}`);
     console.log(`   Amount: ${amount} SOL`);
     console.log(`   Memo: ${memo || 'Bluetooth payment'}`);
-    
+
     // Simulate real transaction processing time
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     // Return a realistic transaction hash format
     return this.generateRealisticTxHash();
   }
@@ -253,7 +254,7 @@ export class BluetoothSimulator extends SimpleEventEmitter {
       device.walletAddress = walletAddress;
       this.emit('deviceTrusted', device);
       // In a real app, this would save to AsyncStorage
-      console.log(`✅ Added wallet ${walletAddress.slice(0,8)}... to ${device.name}`);
+      console.log(`✅ Added wallet ${walletAddress.slice(0, 8)}... to ${device.name}`);
     }
   }
 

@@ -7,10 +7,11 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { LinearGradient } from 'expo-linear-gradient';
 import { groqService, SolidityFunction } from '../services/GroqService';
@@ -32,19 +33,20 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
 
   // Initialize Groq service with API key from .env on mount
   useEffect(() => {
-    groqService.setApiKey('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');
-
-    // Diagnostic network test
-    const testNetwork = async () => {
+    const init = async () => {
       try {
-        console.log('🌐 Testing general internet connectivity...');
-        const response = await fetch('https://google.com', { method: 'HEAD' });
-        console.log('✅ General internet access working:', response.ok);
+        console.log('🤖 Initializing Solust AI Screen...');
+        groqService.setApiKey('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');
+
+        // Diagnostic network test
+        if (Platform.OS === 'web') {
+          console.log('🌐 Web platform detected');
+        }
       } catch (err) {
-        console.error('❌ General internet access FAILED:', err);
+        console.error('❌ Solust initialization FAILED:', err);
       }
     };
-    testNetwork();
+    init();
   }, []);
 
   const handleFileUpload = async () => {
@@ -63,7 +65,13 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
         return;
       }
 
-      const content = await FileSystem.readAsStringAsync(file.uri);
+      let content = '';
+      if (Platform.OS === 'web') {
+        const response = await fetch(file.uri);
+        content = await response.text();
+      } else {
+        content = await FileSystem.readAsStringAsync(file.uri);
+      }
       setSolidityCode(content);
 
       setLoading(true);
@@ -113,6 +121,19 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
 
   const handleDownload = async () => {
     try {
+      if (Platform.OS === 'web') {
+        const blob = new Blob([rustCode], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `converted_${Date.now()}.rs`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      }
+
       const fileName = `converted_${Date.now()}.rs`;
       const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
@@ -244,7 +265,13 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
         return;
       }
 
-      const content = await FileSystem.readAsStringAsync(file.uri);
+      let content = '';
+      if (Platform.OS === 'web') {
+        const response = await fetch(file.uri);
+        content = await response.text();
+      } else {
+        content = await FileSystem.readAsStringAsync(file.uri);
+      }
       setRustCode(content);
       setRustFileName(file.name);
       Alert.alert('Success', 'Rust file loaded! Click Deploy to deploy to Stellar.');
@@ -359,7 +386,7 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
         Choose which functions to convert to Rust
       </Text>
 
-      <ScrollView style={styles.functionList} showsVerticalScrollIndicator={false}>
+      <View style={styles.functionListContainer}>
         {functions.map((fn) => (
           <TouchableOpacity
             key={fn.id}
@@ -376,7 +403,7 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
             </View>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
       <TouchableOpacity style={styles.convertButton} onPress={handleConvert}>
         <LinearGradient
@@ -402,9 +429,11 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
     <View style={styles.content}>
       <Text style={styles.stepTitle}>Conversion Complete!</Text>
 
-      <ScrollView style={styles.codePreview} showsVerticalScrollIndicator={false}>
-        <Text style={styles.codeText}>{rustCode}</Text>
-      </ScrollView>
+      <View style={styles.codePreviewFixed}>
+        <ScrollView showsVerticalScrollIndicator={true}>
+          <Text style={styles.codeText}>{rustCode}</Text>
+        </ScrollView>
+      </View>
 
       <View style={styles.resultButtons}>
         <TouchableOpacity style={styles.actionButton} onPress={() => {
@@ -488,10 +517,14 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
           <ActivityIndicator size="large" color="#9945FF" />
         </View>
       ) : (
-        <>
+        <ScrollView
+          style={styles.mainScroll}
+          contentContainerStyle={styles.mainContainer}
+          showsVerticalScrollIndicator={false}
+        >
           {currentTab === 'upload' && renderUploadTab()}
           {currentTab === 'deploy' && renderDeployTab()}
-        </>
+        </ScrollView>
       )}
     </View>
   );
@@ -736,6 +769,25 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
     gap: 12,
+  },
+  mainScroll: {
+    flex: 1,
+  },
+  mainContainer: {
+    paddingBottom: 60,
+  },
+  functionListContainer: {
+    marginBottom: 20,
+  },
+  codePreviewFixed: {
+    height: 300,
+    backgroundColor: '#0d1117',
+    borderWidth: 1,
+    borderColor: 'rgba(153, 69, 255, 0.3)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    marginTop: 20,
   },
   uploadedFileName: {
     flex: 1,

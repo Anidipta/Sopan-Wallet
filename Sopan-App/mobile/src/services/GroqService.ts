@@ -19,11 +19,13 @@ export class GroqService {
 
     private async initializeGroq() {
         try {
-            // In React Native, we'll need to get the API key from AsyncStorage or user input
-            // For now, we'll initialize it when needed
-            this.apiKey = process.env.GROQ_API_KEY || null;
+            // Guard process.env for web compatibility
+            const env = typeof process !== 'undefined' ? process.env : {};
+            this.apiKey = (env as any).GROQ_API_KEY || null;
+
             if (this.apiKey) {
-                this.groq = new Groq({ apiKey: this.apiKey });
+                console.log('🤖 Initializing Groq with env API key...');
+                this.groq = new Groq({ apiKey: this.apiKey, dangerouslyAllowBrowser: true });
             }
         } catch (error) {
             console.error('Failed to initialize Groq:', error);
@@ -32,7 +34,7 @@ export class GroqService {
 
     setApiKey(apiKey: string) {
         this.apiKey = apiKey;
-        this.groq = new Groq({ apiKey });
+        this.groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
     }
 
     async analyzeSolidityFile(fileContent: string): Promise<SolidityFunction[]> {

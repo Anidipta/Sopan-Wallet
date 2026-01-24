@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Share, Alert, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { StorageService } from '../services/StorageService';
 import { StellarService } from '../services/StellarService';
@@ -63,13 +64,17 @@ export const ReceiveScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Receive XLM</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.contentScroll}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.qrContainer}>
           <View style={styles.qrWrapper}>
             <QRCode
@@ -113,7 +118,7 @@ export const ReceiveScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             Share your QR code or Stellar address with the sender. They can scan it to send XLM to you, even offline via Bluetooth.
           </Text>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 };
@@ -138,10 +143,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 24,
-  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -153,8 +154,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 100,
   },
-  content: {
+  contentScroll: {
     flex: 1,
+  },
+  contentContainer: {
+    padding: 20,
+    alignItems: 'center',
+    paddingBottom: 40,
+  },
+  content: {
     padding: 20,
     alignItems: 'center',
   },

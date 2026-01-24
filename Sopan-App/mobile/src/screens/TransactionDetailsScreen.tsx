@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 
 interface Transaction {
@@ -19,9 +20,9 @@ interface TransactionDetailsScreenProps {
   onBack: () => void;
 }
 
-export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> = ({ 
-  transaction, 
-  onBack 
+export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> = ({
+  transaction,
+  onBack
 }) => {
   const copyToClipboard = async (text: string, label: string) => {
     await Clipboard.setStringAsync(text);
@@ -74,7 +75,7 @@ export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> =
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Transaction Details</Text>
         <TouchableOpacity onPress={shareTransaction} style={styles.shareButton}>
@@ -120,7 +121,7 @@ export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> =
             <Text style={styles.detailLabel}>
               {transaction.type === 'sent' ? 'To' : 'From'}
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.addressContainer}
               onPress={() => copyToClipboard(transaction.address, 'Address')}
             >
@@ -134,7 +135,7 @@ export const TransactionDetailsScreen: React.FC<TransactionDetailsScreenProps> =
           {transaction.signature && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Transaction ID</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.addressContainer}
                 onPress={() => copyToClipboard(transaction.signature!, 'Transaction ID')}
               >
@@ -207,15 +208,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#222',
+    backgroundColor: 'rgba(153, 69, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 24,
   },
   title: {
     fontSize: 20,
