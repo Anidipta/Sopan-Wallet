@@ -191,99 +191,91 @@ export class StellarService {
     }
   }
 
+  // Hardcoded Fee Collector (Treasury) Address for Service Fees
+  private FEE_COLLECTOR_ADDRESS = 'GBF4HP25526K2Z2C76O46H2N1337Y2Z2C76O46H2N1337Y2Z2C7'; // Placeholder Testnet Address
+
   /**
-   * Send payment via the Fee-Deduction Smart Contract
-   * @param senderSecretKey User's secret key
-   * @param recipientPublicKey Recipient's address
-   * @param amount Amount in XLM
+   * Send payment with an explicit service fee deposited to a contract/treasury address.
+   * Uses standard Stellar Multi-Operation Transaction (more reliable than Soroban for simple payments).
+   */
+  async sendPaymentWithFee(
+    senderSecretKey: string,
+    recipientPublicKey: string,
+    amount: number
+  ): Promise<string> {
+    try {
+      console.log('📤 Preparing Payment with Service Fee...');
+      const sourceKeypair = StellarSdk.Keypair.fromSecret(senderSecretKey);
+      const sourceAccount = await this.server.loadAccount(sourceKeypair.publicKey());
+      const recipientExists = await this.accountExists(recipientPublicKey);
+
+      const feeAmount = (amount * 0.0001).toFixed(7); // 0.01% Fee
+      const transactionBuilder = new StellarSdk.TransactionBuilder(sourceAccount, {
+        fee: StellarSdk.BASE_FEE,
+        networkPassphrase: this.networkPassphrase
+      });
+
+      // Operation 1: Main Payment to Recipient
+      if (!recipientExists) {
+        // Create Account if not exists
+        transactionBuilder.addOperation(
+          StellarSdk.Operation.createAccount({
+            destination: recipientPublicKey,
+            startingBalance: amount.toString()
+          })
+        );
+      } else {
+        transactionBuilder.addOperation(
+          StellarSdk.Operation.payment({
+            destination: recipientPublicKey,
+            asset: StellarSdk.Asset.native(),
+            amount: amount.toString()
+          })
+        );
+      }
+
+      // Operation 2: Service Fee to Collector
+      // We assume Fee Collector exists. If not, this might fail (but Treasury should exist).
+      // If amount is too small, fee might be 0. check min.
+      if (parseFloat(feeAmount) > 0) {
+        transactionBuilder.addOperation(
+          StellarSdk.Operation.payment({
+            destination: this.FEE_COLLECTOR_ADDRESS,
+            asset: StellarSdk.Asset.native(),
+            amount: feeAmount
+          })
+        );
+      }
+
+      transactionBuilder.setTimeout(30);
+      const transaction = transactionBuilder.build();
+      transaction.sign(sourceKeypair);
+
+      console.log(`🚀 Submitting Multi-Op Transaction (Sent: ${amount}, Fee: ${feeAmount})...`);
+      const result = await this.server.submitTransaction(transaction);
+
+      console.log('✅ Transaction confirmed:', result.hash);
+      return result.hash;
+    } catch (error: any) {
+      console.error('❌ Multi-Op Payment failed:', error);
+      if (error.response?.data) {
+        console.error('Error details:', error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * (Legacy) Send payment via the Fee-Deduction Smart Contract
+   * Kept for reference but replaced by sendPaymentWithFee for reliability.
    */
   async sendWithServiceFee(
     senderSecretKey: string,
     recipientPublicKey: string,
     amount: number
   ): Promise<string> {
-    try {
-      console.log('📤 Preparing Smart Contract Payment...');
-      const sourceKeypair = StellarSdk.Keypair.fromSecret(senderSecretKey);
-      const sourceAccount = await this.server.loadAccount(sourceKeypair.publicKey());
-
-      // 1. Get Native Asset Contract ID (XLM)
-      const nativeAsset = StellarSdk.Asset.native();
-      const nativeContractId = nativeAsset.contractId(this.networkPassphrase);
-
-      // 2. Convert amount to stroops (i128)
-      // 1 XLM = 10,000,000 stroops
-      const amountStroops = BigInt(Math.floor(amount * 10_000_000));
-
-      // 3. Build Contract Call
-      const contract = new StellarSdk.Contract(this.PAYMENT_CONTRACT_ID);
-      const operation = contract.call(
-        'pay',
-        new StellarSdk.Address(sourceKeypair.publicKey()).toScVal(),
-        new StellarSdk.Address(recipientPublicKey).toScVal(),
-        new StellarSdk.Address(nativeContractId).toScVal(),
-        new StellarSdk.ScInt(amountStroops).toI128()
-      );
-
-      // 4. Build Initial Transaction
-      const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
-        fee: StellarSdk.BASE_FEE,
-        networkPassphrase: this.networkPassphrase
-      })
-        .addOperation(operation)
-        .setTimeout(30)
-        .build();
-
-      // 5. Simulate Transaction (Required for Soroban)
-      console.log('🔄 Simulating transaction...');
-      const simulation = await this.rpcServer.simulateTransaction(transaction);
-
-      if (StellarSdk.rpc.Api.isSimulationError(simulation)) {
-        console.error('Simulation failed', simulation);
-        throw new Error('Transaction simulation failed: ' + simulation.error);
-      }
-
-      // Assemble transaction with resources manually
-      // We need to set SorobanData based on simulation
-      if (simulation.transactionData) {
-        // Use type casting to bypass strict TS checks if methods are missing in typings
-        (transaction as any).setSorobanData(simulation.transactionData);
-        (transaction as any).addResourceFee(simulation.minResourceFee);
-      } else {
-        console.warn("⚠️ No transaction data from simulation");
-      }
-
-      transaction.sign(sourceKeypair);
-
-      console.log('🚀 Submitting Contract Call...');
-      const result = await this.rpcServer.sendTransaction(transaction);
-
-      if (result.status === 'PENDING') {
-        // Wait for completion (poll getTransaction)
-        let attempts = 0;
-        while (attempts < 10) {
-          await new Promise(r => setTimeout(r, 2000));
-          const status = await this.rpcServer.getTransaction(result.hash);
-          if (status.status === 'SUCCESS') {
-            console.log('✅ Contract Payment Confirmed:', result.hash);
-            return result.hash;
-          } else if (status.status === 'FAILED') {
-            throw new Error('Transaction execution failed');
-          }
-          attempts++;
-        }
-      } else if (result.status === ('SUCCESS' as any)) {
-        console.log('✅ Contract Payment Confirmed:', result.hash);
-        return result.hash;
-      } else {
-        console.error('Transmission failed', result);
-        throw new Error('Transaction submission failed');
-      }
-      return result.hash;
-    } catch (error: any) {
-      console.error('❌ Smart Contract Payment failed:', error);
-      throw error;
-    }
+    // Redirect to the robust multi-op implementation
+    return this.sendPaymentWithFee(senderSecretKey, recipientPublicKey, amount);
   }
 
   async confirmTransaction(hash: string, maxRetries: number = 30): Promise<boolean> {

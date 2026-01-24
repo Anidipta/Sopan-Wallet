@@ -21,6 +21,7 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogout }) => {
   const [currentScreen, setCurrentScreen] = useState<string>('wallet');
   const [scannedAddress, setScannedAddress] = useState<string>('');
+  const [navigationParams, setNavigationParams] = useState<any>({});
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
 
   const notifications = NotificationService.getInstance();
@@ -32,6 +33,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogout }) => {
 
   const handleQRScanned = (address: string) => {
     setScannedAddress(address);
+    setNavigationParams({}); // Clear other params
     setCurrentScreen('send');
   };
 
@@ -46,11 +48,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogout }) => {
         return (
           <SendScreen
             onBack={() => {
-              setScannedAddress(''); // Clear scanned address when going back
+              setScannedAddress('');
+              setNavigationParams({});
               setCurrentScreen('wallet');
             }}
             onScanQR={() => setCurrentScreen('scanqr')}
             initialRecipient={scannedAddress}
+            isBluetooth={navigationParams?.isBluetooth}
           />
         );
       case 'receive':
@@ -65,7 +69,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogout }) => {
       case 'bluetooth':
         return <BluetoothPaymentScreen onBack={() => setCurrentScreen('wallet')} onManageDevices={() => setCurrentScreen('bluetoothDevices')} />;
       case 'bluetoothDevices':
-        return <BluetoothDevicesScreen onBack={() => setCurrentScreen('bluetooth')} />;
+        return (
+          <BluetoothDevicesScreen
+            onBack={() => setCurrentScreen('bluetooth')}
+            onNavigate={(screen, params) => {
+              if (screen === 'send' && params) {
+                setScannedAddress(params.initialRecipient || '');
+                // We need a way to pass isBluetooth param too...
+                // Let's modify the state or just set a temporary flag?
+                // Better: Update state to handle params generically.
+                setNavigationParams(params);
+              }
+              setCurrentScreen(screen);
+            }}
+          />
+        );
       case 'history':
         return (
           <HistoryScreen
