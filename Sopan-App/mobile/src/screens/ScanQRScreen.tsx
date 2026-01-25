@@ -26,13 +26,31 @@ export const ScanQRScreen: React.FC<ScanQRScreenProps> = ({ onBack, onScanned })
 
     setScanned(true);
 
-    // Validate Solana address (basic check - should be 32-44 characters)
-    const trimmedData = data.trim();
+    let address = data.trim();
 
-    if (trimmedData.length < 32 || trimmedData.length > 44) {
+    // Handle Stellar SEP-0007 URIs (web+stellar:pay?destination=...)
+    // Also handle generic 'stellar:' scheme if used
+    if (address.startsWith('web+stellar:') || address.startsWith('stellar:')) {
+      try {
+        // Simple parsing to extract destination
+        // Example: web+stellar:pay?destination=GABC...&amount=...
+        const match = address.match(/[?&]destination=([^&]+)/);
+        if (match && match[1]) {
+          address = match[1];
+        }
+      } catch (e) {
+        console.warn('Failed to parse Stellar URI', e);
+      }
+    }
+
+    // Validate Stellar address (starts with G, 56 chars)
+    // Stellar Public Keys are Ed25519 public keys encoded with StrKey (Base32)
+    const isValidStellar = address.startsWith('G') && address.length === 56;
+
+    if (!isValidStellar) {
       Alert.alert(
         'Invalid QR Code',
-        'This doesn\'t appear to be a valid Solana address. Please try again.',
+        'This doesn\'t appear to be a valid Stellar address (starts with G) or Stellar Payment URI. Please try again.',
         [
           {
             text: 'Scan Again',
@@ -43,14 +61,14 @@ export const ScanQRScreen: React.FC<ScanQRScreenProps> = ({ onBack, onScanned })
       return;
     }
 
-    console.log('✅ QR Code scanned:', trimmedData);
+    console.log('✅ QR Code scanned:', address);
     Alert.alert(
       'Address Scanned!',
-      `${trimmedData.substring(0, 8)}...${trimmedData.substring(trimmedData.length - 8)}`,
+      `${address.substring(0, 8)}...${address.substring(address.length - 8)}`,
       [
         {
           text: 'Use This Address',
-          onPress: () => onScanned(trimmedData)
+          onPress: () => onScanned(address)
         },
         {
           text: 'Scan Again',

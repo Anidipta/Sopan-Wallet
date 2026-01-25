@@ -40,8 +40,9 @@
     "plugins": [],
     "extra": {
       "eas": {
-        "projectId": "434c43ab-81a7-41de-a174-530a3b452b72"
+        "projectId": "1ce447b1-f142-4786-9b8c-2382031499b0"
       }
-    }
+    },
+    "owner": "ani11"
   }
 }
