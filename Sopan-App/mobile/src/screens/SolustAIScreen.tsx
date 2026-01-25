@@ -53,7 +53,6 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
-        copyToCacheDirectory: true,
       });
 
       if (result.canceled) return;
@@ -253,7 +252,6 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
-        copyToCacheDirectory: true,
       });
 
       if (result.canceled) return;
