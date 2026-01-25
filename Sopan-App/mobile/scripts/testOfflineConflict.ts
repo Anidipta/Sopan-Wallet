@@ -136,15 +136,18 @@ async function runTest() {
     console.log('\n--- Input Transactions ---');
     console.log('Format: AB10 (A send to B 10 XLM). Enter 0 to finish.');
 
-    while (true) {
-        const input = (await rl.question(`T${tCounter} > `)).trim().toUpperCase();
-        if (input === '0') break;
+    // Hardcoded Transaction List
+    const inputList = ['AB10', 'BC200', 'DC10', 'AB20', 'AB30', 'CA10', 'CD20', 'BD20', 'DC90', 'DA10', 'DB10'];
+
+    console.log('\n--- Input Transactions (Auto-Processing) ---');
+    console.log(`List: ${inputList.join(', ')}\n`);
+
+    for (const input of inputList) {
+        // Simulate slight delay for timestamp ordering
+        await new Promise(r => setTimeout(r, 10));
 
         const match = input.match(/^([A-D])([A-D])(\d+(\.\d+)?)$/);
-        if (!match) {
-            console.log('Invalid format. Try again (e.g. AC577).');
-            continue;
-        }
+        if (!match) continue;
 
         const [, sender, recipient, amountStr] = match;
         const amount = parseFloat(amountStr);
@@ -177,7 +180,7 @@ async function runTest() {
         }, difficulty);
 
         proposals.push({ tId, block });
-        console.log(`Added ${tId}: ${KEYS[sender as keyof typeof KEYS].name} -> ${KEYS[recipient as keyof typeof KEYS].name} ${amount} XLM (Work: ${block.cumulativeWork}, Sigs: ${sigCount})`);
+        console.log(`Added ${tId} [${input}]: ${KEYS[sender as keyof typeof KEYS].name} -> ${KEYS[recipient as keyof typeof KEYS].name} ${amount} XLM (Work: ${block.cumulativeWork}, Sigs: ${sigCount})`);
         tCounter++;
     }
 
@@ -282,12 +285,12 @@ async function runTest() {
 
         results.sort((a, b) => parseInt(a.T_Number.slice(1)) - parseInt(b.T_Number.slice(1)));
 
-        const csvHeader = 'T_Number,Sender,Recipient,Amount,Win_Reason,Tx_Hash,Explorer_Link\n';
-        const csvRows = results.map(r => `${r.T_Number},${r.Sender},${r.Recipient},${r.Amount},"${r.Reason}",${r.Tx_Hash},${r.Explorer_Link}`).join('\n');
+        const csvHeader = 'T_Number,Sender,Recipient,Amount,Explorer_Link\n';
+        const csvRows = results.map(r => `${r.T_Number},${r.Sender},${r.Recipient},${r.Amount},${r.Explorer_Link}`).join('\n');
         fs.writeFileSync('data.csv', csvHeader + csvRows);
 
         console.log('\n✅ Sync Complete');
-        // console.table(results);
+        console.table(results);
     } else {
         console.log('Sync aborted.');
     }

@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <a href="https://futurenet.stellarchain.io/contract/CBV5C5JWPKNZKR6TZN7K65P7WRN2OCRUUT7ZCGL5O4A3YBXU4SKS3524">
+  <a href="https://stellar.expert/explorer/testnet/contract/CBV5C5JWPKNZKR6TZN7K65P7WRN2OCRUUT7ZCGL5O4A3YBXU4SKS3524?filter=users">
     <img src="https://img.shields.io/badge/Smart_Contract-Stellar_Explorer-blue?style=flat-square&logo=stellar" alt="Smart Contract">
   </a>
   &nbsp;&nbsp;

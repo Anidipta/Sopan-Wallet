@@ -108,7 +108,12 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
 
     try {
       const rust = await groqService.convertToRust(solidityCode, selectedFunctions);
-      setRustCode(rust);
+
+      // Omit first and last line (removing potential markdown backticks)
+      const lines = rust.split('\n');
+      const cleanRust = lines.slice(1, -1).join('\n').trim();
+
+      setRustCode(cleanRust);
       setStep('result');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to convert to Rust');
@@ -185,17 +190,48 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
       await storage.saveDeployment(deployment);
 
       try {
-        // Use backend server for real deployment
-        const DeploymentService = require('../services/DeploymentService').DeploymentService;
-        const deployService = new DeploymentService();
-
-        // Check if server is available
-        const isHealthy = await deployService.checkHealth();
-        if (!isHealthy) {
-          throw new Error('Deployment server is not available. Using mock deployment.');
+        let deployService;
+        try {
+          const DeploymentService = require('../services/DeploymentService').DeploymentService;
+          deployService = new DeploymentService();
+        } catch (e) {
+          console.log("DeploymentService not found, using pure mock.", e);
         }
 
-        // Deploy via backend
+        // Check if server is available if service exists
+        let isHealthy = false;
+        if (deployService) {
+          try {
+            isHealthy = await deployService.checkHealth();
+          } catch (e) {
+            console.log("Server health check failed:", e);
+          }
+        }
+
+        if (!isHealthy) {
+          // Fallback to mock deployment immediately if no service or unhealthy
+          console.log("Using Mock Deployment Logic");
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          const contractId = `C${Math.random().toString(36).substring(2, 15).toUpperCase()}...MOCK`;
+
+          const completedDeployment = {
+            ...deployment,
+            status: 'completed',
+            contractId,
+            deployer: wallet.publicKey
+          };
+          await storage.saveDeployment(completedDeployment);
+
+          Alert.alert(
+            '✅ Deployment Complete!',
+            `Contract deployed to ${network}\n\nContract ID:\n${contractId}\n\nNote: This is a simulation. To enable real deployment, implement backend services.`,
+            [{ text: 'OK' }]
+          );
+          return; // Exit successfully
+        }
+
+        // Real Deployment Logic (only if healthy)
         const filename = rustFileName || `contract_${Date.now()}.rs`;
         const result = await deployService.deployContract(
           rustCode,
@@ -215,30 +251,15 @@ export const SolustAIScreen: React.FC<SolustAIScreenProps> = ({ onBack }) => {
         await storage.saveDeployment(completedDeployment);
 
         Alert.alert(
-          '✅ Deployment Successful!',
+          '✅✅ Deployment Successful!',
           `Contract deployed to ${network}\n\nContract ID:\n${result.contractId}\n\nDeployer: ${result.deployer}`,
           [{ text: 'OK' }]
         );
 
       } catch (serverError: any) {
-        console.log('Server deployment failed, using mock:', serverError.message);
-
-        // Fallback to mock deployment
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        const contractId = `C${Math.random().toString(36).substring(2, 15).toUpperCase()}`;
-
-        const completedDeployment = {
-          ...deployment,
-          status: 'completed',
-          contractId
-        };
-        await storage.saveDeployment(completedDeployment);
-
-        Alert.alert(
-          '✅ Mock Deployment Complete!',
-          `Contract deployed to ${network}\n\nContract ID:\n${contractId}\n\nNote: This is a mock deployment. To enable real deployment, configure the backend server URL in .env`,
-          [{ text: 'OK' }]
-        );
+        // ... existing error catch
+        console.error("Deploy error", serverError);
+        throw serverError;
       }
 
     } catch (error: any) {
