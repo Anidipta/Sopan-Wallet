@@ -24,6 +24,10 @@
   <a href="https://expo.dev/accounts/ani11/projects/Sopan/builds/13c8411a-da42-4ac8-a2e7-eecded26aaaa">
     <img src="https://img.shields.io/badge/Download_App-APK-neongreen?style=for-the-badge&logo=android" alt="Download App" height="40"/>
   </a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://youtube.com/shorts/k4NBzYhf_do?si=c7jr-qgitQeNn4LX">
+    <img src="https://img.shields.io/badge/Watch_Demo-YouTube-red?style=for-the-badge&logo=youtube" alt="Watch Demo" height="40"/>
+  </a>
 </p>
 
 <p align="center">
